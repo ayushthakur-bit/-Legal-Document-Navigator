@@ -199,7 +199,17 @@ export function validateAnalyzePayload(body: any): { valid: boolean; error?: str
 /**
  * Validates and sanitizes Q&A request body
  */
-export function validateAskPayload(body: any): { valid: boolean; error?: string; data?: { question: string; documentText: string; documentTitle: string } } {
+export function validateAskPayload(body: any): {
+  valid: boolean;
+  error?: string;
+  data?: {
+    question: string;
+    documentText: string;
+    documentTitle: string;
+    includeGoogleSearch?: boolean;
+    jurisdiction?: string;
+  };
+} {
   if (!body || typeof body !== "object") {
     return { valid: false, error: "Invalid request payload. Expected JSON object." };
   }
@@ -218,12 +228,121 @@ export function validateAskPayload(body: any): { valid: boolean; error?: string;
     return { valid: false, error: "Field 'documentText' is required to answer question in context." };
   }
 
+  const includeGoogleSearch = Boolean(body.includeGoogleSearch);
+  const jurisdiction = typeof body.jurisdiction === "string" ? body.jurisdiction.trim().slice(0, 100) : undefined;
+
   return {
     valid: true,
     data: {
       question: question.trim().replace(/[<>]/g, ""),
       documentText: documentText.trim(),
       documentTitle: typeof documentTitle === "string" ? documentTitle.trim().slice(0, 200) : "Legal Document",
+      includeGoogleSearch,
+      jurisdiction,
     },
+  };
+}
+
+/**
+ * Validates search grounding payload
+ */
+export function validateSearchGroundingPayload(body: any): {
+  valid: boolean;
+  error?: string;
+  data?: {
+    query: string;
+    clauseTitle?: string;
+    documentSnippet?: string;
+    jurisdiction?: string;
+  };
+} {
+  if (!body || typeof body !== "object") {
+    return { valid: false, error: "Invalid request payload. Expected JSON object." };
+  }
+  const { query, clauseTitle, documentSnippet, jurisdiction } = body;
+  if (!query || typeof query !== "string" || !query.trim()) {
+    return { valid: false, error: "Field 'query' must be a non-empty string." };
+  }
+  return {
+    valid: true,
+    data: {
+      query: query.trim().slice(0, 500).replace(/[<>]/g, ""),
+      clauseTitle: typeof clauseTitle === "string" ? clauseTitle.trim().slice(0, 150) : undefined,
+      documentSnippet: typeof documentSnippet === "string" ? documentSnippet.trim().slice(0, 5000) : undefined,
+      jurisdiction: typeof jurisdiction === "string" ? jurisdiction.trim().slice(0, 100) : undefined,
+    },
+  };
+}
+
+/**
+ * Validates legal file upload extension and size limit
+ */
+export function validateLegalDocumentFile(file: { name: string; size: number }): {
+  valid: boolean;
+  error?: string;
+} {
+  const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+  const ALLOWED_EXTENSIONS = [".pdf", ".docx", ".txt", ".md", ".rtf"];
+
+  if (!file || !file.name) {
+    return { valid: false, error: "No file selected. Please select a legal document." };
+  }
+
+  const nameLower = file.name.toLowerCase();
+  const hasValidExt = ALLOWED_EXTENSIONS.some((ext) => nameLower.endsWith(ext));
+
+  if (!hasValidExt) {
+    return {
+      valid: false,
+      error: `Unsupported file format. Please upload a PDF, DOCX, TXT, RTF, or MD file.`,
+    };
+  }
+
+  if (file.size > MAX_SIZE_BYTES) {
+    const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+    return {
+      valid: false,
+      error: `File size (${sizeMb} MB) exceeds maximum allowed limit of 10 MB.`,
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Detects adversarial prompt injections embedded in documents or user questions
+ */
+export function detectPromptInjection(query: string): {
+  isMalicious: boolean;
+  sanitized: string;
+  reason?: string;
+} {
+  if (!query || typeof query !== "string") {
+    return { isMalicious: false, sanitized: "" };
+  }
+
+  const injectionPatterns = [
+    /ignore\s+(all\s+)?(previous|prior|above)\s+instructions/i,
+    /reveal\s+(the\s+)?(system\s+prompt|initial\s+prompt|developer\s+mode)/i,
+    /disregard\s+(all\s+)?(rules|guidelines|context)/i,
+    /system\s+instruction/i,
+    /you\s+are\s+now\s+(in\s+)?(dan|unfiltered|jailbreak)\s+mode/i,
+    /bypass\s+all\s+(filters|safeguards)/i,
+    /print\s+your\s+instructions/i,
+  ];
+
+  for (const pattern of injectionPatterns) {
+    if (pattern.test(query)) {
+      return {
+        isMalicious: true,
+        sanitized: query.replace(/[<>]/g, "").trim(),
+        reason: "Adversarial instruction detected and neutralized.",
+      };
+    }
+  }
+
+  return {
+    isMalicious: false,
+    sanitized: query.replace(/[<>]/g, "").trim(),
   };
 }

@@ -24,6 +24,7 @@ import {
 import { AnalysisResult, ChecklistItem, HiddenTrap, SampleDocument, RiskFactorItem } from "../types";
 import { RecentlyAnalyzedBar } from "./RecentlyAnalyzedBar";
 import { SAMPLE_DOCUMENTS } from "../data/sampleDocuments";
+import { LegalDocumentSplitNavigator } from "./LegalDocumentSplitNavigator";
 import {
   getRiskColorInfo,
   deriveDynamicRiskFactors,
@@ -33,6 +34,7 @@ import {
 interface DashboardViewProps {
   analysis: AnalysisResult | null;
   documentTitle: string;
+  documentText?: string;
   currentDocumentId?: string;
   onSelectDocument?: (doc: SampleDocument) => void;
   onNavigateToTab: (tab: "overview" | "upload" | "clauses" | "obligations" | "compare" | "chat" | "voice" | "attorney-prep") => void;
@@ -41,19 +43,23 @@ interface DashboardViewProps {
   onOpenExportModal?: () => void;
   onOpenUploadModal?: () => void;
   onResetAnalysis?: () => void;
+  onAskQuestion?: (q: string, includeGoogleSearch?: boolean) => Promise<any>;
   isAnalyzing?: boolean;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   analysis,
   documentTitle,
+  documentText,
   currentDocumentId,
   onSelectDocument,
   onNavigateToTab,
+  onSelectClauseTopic,
   onOpenGlossary,
   onOpenExportModal,
   onOpenUploadModal,
   onResetAnalysis,
+  onAskQuestion,
   isAnalyzing,
 }) => {
   const [isReset, setIsReset] = useState(false);
@@ -226,6 +232,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <RecentlyAnalyzedBar
           currentDocumentId={currentDocumentId || ""}
           onSelectDocument={onSelectDocument || (() => {})}
+        />
+      </motion.div>
+
+      {/* CORE LEGAL DOCUMENT NAVIGATOR: SPLIT VIEW (DOCUMENT on left, AI ANALYSIS on right) */}
+      <motion.div variants={itemVariants}>
+        <LegalDocumentSplitNavigator
+          documentTitle={documentTitle}
+          documentText={documentText || ""}
+          analysis={activeAnalysis}
+          onNavigateToTab={onNavigateToTab}
+          onSelectClauseTopic={onSelectClauseTopic}
+          onAskQuestion={onAskQuestion}
         />
       </motion.div>
 

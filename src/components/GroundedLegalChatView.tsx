@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   MessageSquare,
   Send,
@@ -12,14 +12,18 @@ import {
   Copy,
   AlertCircle,
   Mic,
+  Eye,
+  X,
+  Globe,
+  ExternalLink,
 } from "lucide-react";
-import { ChatMessage } from "../types";
+import { ChatMessage, GroundedEvidence } from "../types";
 
 interface GroundedLegalChatViewProps {
   documentTitle: string;
   documentText: string;
   suggestedQuestions: string[];
-  onAskQuestion: (q: string) => Promise<any>;
+  onAskQuestion: (q: string, includeGoogleSearch?: boolean) => Promise<any>;
   onSwitchToVoice?: () => void;
 }
 
@@ -34,13 +38,15 @@ export const GroundedLegalChatView: React.FC<GroundedLegalChatViewProps> = ({
     {
       id: "initial-msg",
       sender: "assistant",
-      text: `Hello! I am your grounded legal document assistant. I have indexed "${documentTitle}". You can ask any question about fee triggers, termination rights, notice deadlines, liability restrictions, or landlord entry covenants. Every answer is grounded directly in the document text.`,
+      text: `Hello! I am your grounded legal document assistant. I have indexed "${documentTitle}". You can ask any question about fee triggers, termination rights, notice deadlines, liability restrictions, or landlord entry covenants. Every answer is grounded directly in the document text, and can be verified against current state and federal statutes with live Google Search Grounding.`,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     },
   ]);
   const [inputQuery, setInputQuery] = useState("");
   const [isAnswering, setIsAnswering] = useState(false);
+  const [useSearchGrounding, setUseSearchGrounding] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [selectedEvidence, setSelectedEvidence] = useState<GroundedEvidence | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -67,7 +73,7 @@ export const GroundedLegalChatView: React.FC<GroundedLegalChatViewProps> = ({
     setIsAnswering(true);
 
     try {
-      const result = await onAskQuestion(query.trim());
+      const result = await onAskQuestion(query.trim(), useSearchGrounding);
 
       const botMessage: ChatMessage = {
         id: `bot-${Date.now()}`,
@@ -76,6 +82,18 @@ export const GroundedLegalChatView: React.FC<GroundedLegalChatViewProps> = ({
         citations: result.citations,
         confidence: result.confidence,
         suggestedFollowUps: result.suggestedFollowUps,
+        evidence: result.evidence || (result.source ? {
+          source: result.source,
+          clauseTitle: result.clauseTitle || "Document Citation",
+          quote: result.quote || (result.citations && result.citations[0]) || "",
+        } : undefined),
+        source: result.source,
+        clauseTitle: result.clauseTitle,
+        quote: result.quote,
+        isOffTopic: result.isOffTopic,
+        googleSearchSources: result.googleSearchSources,
+        webSearchQueries: result.webSearchQueries,
+        hasGoogleSearchGrounding: result.hasGoogleSearchGrounding,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
 
@@ -198,8 +216,51 @@ export const GroundedLegalChatView: React.FC<GroundedLegalChatViewProps> = ({
 
               <p className="whitespace-pre-wrap">{msg.text}</p>
 
+              {/* Evidence System (Item 5) */}
+              {msg.sender === "assistant" && (msg.evidence || msg.source) && (
+                <div className="p-3.5 rounded-xl bg-white/90 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-900 dark:text-white flex items-center gap-1.5 uppercase tracking-wider">
+                      <span>📄</span>
+                      <span>Source:</span>
+                    </span>
+                    <button
+                      onClick={() =>
+                        setSelectedEvidence(
+                          msg.evidence || {
+                            clauseTitle: msg.clauseTitle || "Document Citation",
+                            source: msg.source || "Document Body",
+                            quote: msg.quote || (msg.citations && msg.citations[0]) || "",
+                          }
+                        )
+                      }
+                      className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-lg border border-indigo-200/60 dark:border-indigo-800"
+                    >
+                      <Eye className="w-3 h-3" />
+                      <span>[View Source]</span>
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-[11px] font-bold text-indigo-700 dark:text-indigo-300">
+                    <span>{msg.evidence?.source || msg.source}</span>
+                    {(msg.evidence?.clauseTitle || msg.clauseTitle) && (
+                      <>
+                        <span className="text-slate-400">•</span>
+                        <span>{msg.evidence?.clauseTitle || msg.clauseTitle}</span>
+                      </>
+                    )}
+                  </div>
+
+                  {(msg.evidence?.quote || msg.quote) && (
+                    <p className="font-mono text-[11px] text-slate-600 dark:text-slate-300 pl-2.5 border-l-2 border-indigo-500 italic line-clamp-3">
+                      "{msg.evidence?.quote || msg.quote}"
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Citations & Confidence Badge */}
-              {msg.citations && msg.citations.length > 0 && (
+              {msg.citations && msg.citations.length > 0 && !msg.evidence && !msg.source && (
                 <div className="p-3.5 rounded-xl bg-white/70 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold text-slate-900 dark:text-white flex items-center gap-1.5 uppercase tracking-wider">
@@ -219,6 +280,55 @@ export const GroundedLegalChatView: React.FC<GroundedLegalChatViewProps> = ({
                       </li>
                     ))}
                   </ul>
+                </div>
+              )}
+
+              {/* Google Search Grounding Sources (Gemini 3.5 Flash) */}
+              {msg.googleSearchSources && msg.googleSearchSources.length > 0 && (
+                <div className="p-3.5 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/50 border border-indigo-200/80 dark:border-indigo-800 space-y-2.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5 uppercase tracking-wider">
+                      <Globe className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                      Google Search Grounding (Statutes &amp; Precedents):
+                    </span>
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-indigo-200/70 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200">
+                      Live Search Grounded
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">
+                      Verified Statutory &amp; Legal Authorities:
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                      {msg.googleSearchSources.map((src, sIdx) => (
+                        <a
+                          key={sIdx}
+                          href={src.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-between p-2 rounded-lg bg-white/95 dark:bg-slate-900/95 border border-indigo-100 dark:border-indigo-900 hover:border-indigo-400 text-indigo-700 dark:text-indigo-300 transition-all text-[11px] font-medium group"
+                        >
+                          <span className="truncate pr-2">{src.title || src.url}</span>
+                          <ExternalLink className="w-3 h-3 shrink-0 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-transform" />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+
+                  {msg.webSearchQueries && msg.webSearchQueries.length > 0 && (
+                    <div className="pt-1 text-[10px] text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-1.5">
+                      <span className="font-semibold">Search queries:</span>
+                      {msg.webSearchQueries.map((sq, sqIdx) => (
+                        <span
+                          key={sqIdx}
+                          className="px-1.5 py-0.5 rounded bg-white/70 dark:bg-slate-900/70 font-mono text-[10px]"
+                        >
+                          "{sq}"
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -304,10 +414,99 @@ export const GroundedLegalChatView: React.FC<GroundedLegalChatViewProps> = ({
             <Send className="w-4 h-4" />
           </button>
         </div>
+
+        <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => setUseSearchGrounding(!useSearchGrounding)}
+            className={`text-[11px] font-bold px-2.5 py-1 rounded-xl border flex items-center gap-1.5 transition-all cursor-pointer ${
+              useSearchGrounding
+                ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700 shadow-2xs"
+                : "bg-white/60 dark:bg-slate-800/60 text-slate-500 border-slate-200 dark:border-slate-700 hover:border-slate-400"
+            }`}
+            title="When active, queries are grounded with Google Search & Gemini 3.5 Flash to verify against state & federal statutes"
+          >
+            <Globe className="w-3.5 h-3.5 text-indigo-500" />
+            <span>Google Search Grounding (Statutes &amp; Precedents)</span>
+            <span
+              className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold ${
+                useSearchGrounding
+                  ? "bg-emerald-500 text-white"
+                  : "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300"
+              }`}
+            >
+              {useSearchGrounding ? "ON" : "OFF"}
+            </span>
+          </button>
+
+          <div className="text-[10px] text-slate-400">
+            Grounded in <span className="font-semibold text-slate-600 dark:text-slate-300">{documentTitle}</span>
+          </div>
+        </div>
+
         <div className="text-[10px] text-slate-400 text-center mt-2">
           Responses are generated to assist your personal review and prepare you for attorney discussions, not as formal legal advice.
         </div>
       </form>
+
+      {/* Interactive Evidence Source Modal */}
+      <AnimatePresence>
+        {selectedEvidence && (
+          <div
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setSelectedEvidence(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="glass-panel-elevated rounded-3xl border border-slate-200 dark:border-slate-700 max-w-2xl w-full p-6 text-slate-800 dark:text-slate-200 space-y-4 shadow-2xl"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">📄</span>
+                  <div>
+                    <h3 className="font-bold text-sm sm:text-base font-display text-slate-900 dark:text-white">
+                      {selectedEvidence.clauseTitle || "Document Citation"}
+                    </h3>
+                    <span className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold font-mono">
+                      {selectedEvidence.source}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedEvidence(null)}
+                  className="text-xs font-bold px-3 py-1 rounded-xl glass-subtle hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Exact Excerpt from Uploaded Document:
+                </span>
+                <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-mono text-xs leading-relaxed text-slate-800 dark:text-slate-200 max-h-80 overflow-y-auto whitespace-pre-wrap">
+                  {selectedEvidence.quote || "No raw text quote found for this citation."}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-200/60 dark:border-slate-800 text-slate-500">
+                <span>Grounded specifically in {documentTitle}</span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(selectedEvidence.quote);
+                  }}
+                  className="text-indigo-600 dark:text-indigo-400 hover:underline font-bold"
+                >
+                  Copy Excerpt
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -11,28 +11,35 @@ export const DisclaimerBanner: React.FC = () => {
       {!isDismissed && (
         <aside
           id="legal-disclaimer-banner"
-          aria-label="Educational Legal Assistance Notice"
+          aria-label="Legal Informational Assistance and Privacy Notice"
           className="bg-amber-500/10 dark:bg-amber-950/40 border-b border-amber-500/20 text-amber-900 dark:text-amber-200 px-4 py-2 text-xs flex items-center justify-between transition-all relative z-20"
         >
-          <div className="flex items-center gap-2 max-w-6xl mx-auto flex-1 flex-wrap">
-            <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-            <span className="font-bold text-amber-950 dark:text-amber-100">Educational Legal Assistance:</span>
-            <span className="text-amber-900/90 dark:text-amber-200/90">
-              This AI assistant simplifies, analyzes, and compares documents to empower understanding. It provides informational analysis, not formal legal advice.
-            </span>
-            <button
-              id="btn-learn-more-disclaimer"
-              onClick={() => setShowModal(true)}
-              className="text-amber-950 dark:text-amber-100 font-bold underline hover:text-black dark:hover:text-white ml-1 cursor-pointer whitespace-nowrap"
-            >
-              Notice &amp; Boundaries
-            </button>
+          <div className="flex items-center gap-2 max-w-7xl mx-auto flex-1 flex-wrap justify-between">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+              <span className="font-bold text-amber-950 dark:text-amber-100">⚖️ Important:</span>
+              <span className="text-amber-900/90 dark:text-amber-200/90">
+                Legal Document Navigator provides AI-generated informational assistance and is not a substitute for advice from a qualified legal professional.
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 text-[11px] border border-emerald-500/20">
+                <span>🔒</span> Privacy: Documents processed securely in-memory and not retained longer than necessary.
+              </span>
+              <button
+                id="btn-learn-more-disclaimer"
+                onClick={() => setShowModal(true)}
+                className="text-amber-950 dark:text-amber-100 font-bold underline hover:text-black dark:hover:text-white ml-1 cursor-pointer whitespace-nowrap"
+              >
+                Notice &amp; Privacy
+              </button>
+            </div>
           </div>
           <button
             id="btn-dismiss-disclaimer"
             onClick={() => setIsDismissed(true)}
             aria-label="Dismiss disclaimer"
-            className="text-amber-700 dark:text-amber-400 hover:text-amber-950 dark:hover:text-white p-1 rounded-md transition-colors cursor-pointer"
+            className="text-amber-700 dark:text-amber-400 hover:text-amber-950 dark:hover:text-white p-1 rounded-md transition-colors cursor-pointer ml-2"
           >
             <X className="w-3.5 h-3.5" />
           </button>

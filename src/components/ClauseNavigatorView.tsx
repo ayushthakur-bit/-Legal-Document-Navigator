@@ -13,8 +13,10 @@ import {
   BookOpen,
   Copy,
   Check,
+  Globe,
+  Loader2,
 } from "lucide-react";
-import { LegalClause, RiskLevel } from "../types";
+import { LegalClause, RiskLevel, SearchGroundingResult } from "../types";
 
 interface ClauseNavigatorViewProps {
   clauses: LegalClause[];
@@ -34,6 +36,8 @@ export const ClauseNavigatorView: React.FC<ClauseNavigatorViewProps> = ({
   const [filterCategory, setFilterCategory] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [isVerifyingStatute, setIsVerifyingStatute] = useState(false);
+  const [statutoryVerification, setStatutoryVerification] = useState<SearchGroundingResult | null>(null);
 
   const categories = Array.from(
     new Set(clauses.map((c) => c.category).filter(Boolean))
@@ -82,6 +86,30 @@ export const ClauseNavigatorView: React.FC<ClauseNavigatorViewProps> = ({
           border: "border-l-emerald-500",
           icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />,
         };
+    }
+  };
+
+  const handleVerifyStatute = async () => {
+    if (!activeClause || isVerifyingStatute) return;
+    setIsVerifyingStatute(true);
+    try {
+      const res = await fetch("/api/legal/search-grounding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: activeClause.clauseTitle,
+          clauseTitle: activeClause.clauseTitle,
+          documentSnippet: activeClause.originalSnippet || activeClause.plainEnglish,
+          jurisdiction: "United States (State & Federal Commercial Law)",
+        }),
+      });
+      if (!res.ok) throw new Error("Verification failed");
+      const data: SearchGroundingResult = await res.json();
+      setStatutoryVerification(data);
+    } catch (err: any) {
+      console.warn("Statutory verification error:", err);
+    } finally {
+      setIsVerifyingStatute(false);
     }
   };
 
@@ -295,6 +323,84 @@ export const ClauseNavigatorView: React.FC<ClauseNavigatorViewProps> = ({
                 <div className="p-3.5 rounded-2xl glass-subtle text-xs font-mono text-slate-800 dark:text-slate-200 leading-relaxed max-h-48 overflow-y-auto border border-slate-200/60 dark:border-slate-800">
                   {activeClause.originalSnippet || "Full clause referenced in document text."}
                 </div>
+              </div>
+
+              {/* Statutory Verification (Google Search Grounding) */}
+              <div className="p-4 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/80 space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-bold text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5 uppercase tracking-wider">
+                    <Globe className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                    Statutory Enforceability &amp; Real-Time Precedents
+                  </span>
+                  <button
+                    onClick={handleVerifyStatute}
+                    disabled={isVerifyingStatute}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold text-xs cursor-pointer shadow-xs transition-all"
+                  >
+                    {isVerifyingStatute ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Searching Statutes...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Globe className="w-3.5 h-3.5" />
+                        <span>Verify with Google Search Grounding</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {statutoryVerification ? (
+                  <div className="p-3.5 rounded-xl bg-white/90 dark:bg-slate-900/90 border border-indigo-100 dark:border-indigo-900 space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-800 dark:text-slate-200">
+                        Governing Compliance Rating:
+                      </span>
+                      <span
+                        className={`font-bold px-2.5 py-0.5 rounded-full text-[10px] ${
+                          statutoryVerification.complianceRating === "HIGH_RISK_STATUTORY_VIOLATION"
+                            ? "bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300"
+                            : statutoryVerification.complianceRating === "ENFORCEABLE_STANDARD"
+                            ? "bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300"
+                            : "bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300"
+                        }`}
+                      >
+                        {statutoryVerification.complianceRating}
+                      </span>
+                    </div>
+
+                    <p className="text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap font-medium">
+                      {statutoryVerification.analysis}
+                    </p>
+
+                    {statutoryVerification.sources && statutoryVerification.sources.length > 0 && (
+                      <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800 space-y-1">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase">
+                          Verified Statutory Sources:
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {statutoryVerification.sources.map((s, sIdx) => (
+                            <a
+                              key={sIdx}
+                              href={s.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline bg-slate-50 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700"
+                            >
+                              <span className="truncate max-w-[200px]">{s.title || s.url}</span>
+                              <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Click "Verify with Google Search Grounding" to cross-reference this clause against state civil codes, FTC rulings, and consumer statutes via Gemini 3.5 Flash live search.
+                  </p>
+                )}
               </div>
 
               {/* Actions */}

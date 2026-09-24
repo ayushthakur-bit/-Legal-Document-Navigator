@@ -50,8 +50,54 @@ export interface RiskFactorItem {
   rationale?: string;
 }
 
+export interface StructuredSummary {
+  keyPoints: string[];
+  partiesInvolved: { name: string; role: string }[];
+  purposeOfAgreement: string;
+  duration: string;
+}
+
+export interface FinancialTerms {
+  baseCompensationOrRent: string;
+  depositOrRetainer: string;
+  penaltiesAndLateFees: string;
+  expensePassThroughs?: string;
+}
+
+export interface CategorizedObligations {
+  yourObligations: ObligationItem[];
+  otherPartyObligations: ObligationItem[];
+  importantConditions: string[];
+}
+
+export interface IndexedDocumentPage {
+  pageNumber: number;
+  text: string;
+  wordCount: number;
+}
+
+export interface IndexedDocumentSection {
+  id: string;
+  sectionNumber: string;
+  title: string;
+  pageNumber: number;
+  content: string;
+  previewSnippet: string;
+}
+
+export interface GroundedEvidence {
+  clauseTitle?: string;
+  source: string; // e.g., "Page 1 • Section 4"
+  quote: string; // Exact excerpt from the uploaded document
+  sectionId?: string;
+  pageNumber?: number;
+}
+
 export interface AnalysisResult {
   summary: string;
+  structuredSummary?: StructuredSummary;
+  financialTerms?: FinancialTerms;
+  categorizedObligations?: CategorizedObligations;
   overallRiskRating: "LOW" | "MODERATE" | "HIGH" | "CRITICAL";
   riskScore: number;
   riskSummary: string;
@@ -112,14 +158,38 @@ export interface AttorneyBriefResult {
   documentsToBringToMeeting: string[];
 }
 
+export interface SearchGroundingSource {
+  title: string;
+  url: string;
+}
+
+export interface SearchGroundingResult {
+  query: string;
+  clauseTitle?: string;
+  analysis: string;
+  complianceRating?: "ENFORCEABLE_STANDARD" | "HIGH_RISK_STATUTORY_VIOLATION" | "JURISDICTION_DEPENDENT" | "NEEDS_LOCAL_COUNSEL";
+  keyStatutes?: string[];
+  sources: SearchGroundingSource[];
+  webSearchQueries?: string[];
+  timestamp: string;
+}
+
 export interface GroundedAnswer {
   answer: string;
   citations: string[];
-  confidence: "HIGH" | "MODERATE" | "AMBIGUOUS_IN_TEXT" | string;
+  evidence?: GroundedEvidence;
+  source?: string;
+  quote?: string;
+  clauseTitle?: string;
+  isOffTopic?: boolean;
+  confidence: "HIGH" | "MODERATE" | "AMBIGUOUS_IN_TEXT" | "NOT_IN_DOCUMENT" | string;
   relevantClauses?: string[];
   recommendation?: string;
   suggestedFollowUps?: string[];
   disclaimer?: string;
+  googleSearchSources?: SearchGroundingSource[];
+  webSearchQueries?: string[];
+  hasGoogleSearchGrounding?: boolean;
 }
 
 export interface ChatMessage {
@@ -127,8 +197,16 @@ export interface ChatMessage {
   sender: "user" | "assistant";
   text: string;
   citations?: string[];
+  evidence?: GroundedEvidence;
+  source?: string;
+  quote?: string;
+  clauseTitle?: string;
+  isOffTopic?: boolean;
   confidence?: string;
   suggestedFollowUps?: string[];
+  googleSearchSources?: SearchGroundingSource[];
+  webSearchQueries?: string[];
+  hasGoogleSearchGrounding?: boolean;
   timestamp: string;
 }
 
@@ -192,3 +270,41 @@ export interface RecentDocumentRecord {
   comparisonResult?: ComparisonResult | null;
   attorneyBrief?: AttorneyBriefResult | null;
 }
+
+export interface UserProfile {
+  uid: string;
+  fullName: string;
+  email: string;
+  phoneNumber?: string;
+  profilePhotoURL?: string;
+  createdAt: any;
+  updatedAt: any;
+}
+
+export interface UserDocumentRecord {
+  id: string;
+  userId: string;
+  fileName: string;
+  fileType: string;
+  fileURL?: string;
+  status: "UPLOADED" | "ANALYZED" | "ERROR";
+  uploadedAt: any;
+  analyzedAt?: any;
+  summary?: string;
+  documentText: string;
+  analysis?: AnalysisResult;
+  comparisonResult?: ComparisonResult | null;
+  attorneyBrief?: AttorneyBriefResult | null;
+  createdAt: any;
+  updatedAt?: any;
+}
+
+export type AuthPageView =
+  | "app"
+  | "login"
+  | "signup"
+  | "forgot-password"
+  | "dashboard"
+  | "documents"
+  | "profile"
+  | "settings";

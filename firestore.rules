@@ -1,0 +1,91 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Catch-All: Deny by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened Helper Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Validation Blueprint for User Profiles
+    function isValidUser(data) {
+      return data.uid is string &&
+             data.uid == request.auth.uid &&
+             data.fullName is string &&
+             data.fullName.size() >= 1 &&
+             data.fullName.size() <= 120 &&
+             data.email is string &&
+             data.email.size() >= 3 &&
+             data.email.size() <= 254 &&
+             (!('phoneNumber' in data) || (data.phoneNumber is string && data.phoneNumber.size() <= 35)) &&
+             (!('profilePhotoURL' in data) || (data.profilePhotoURL is string && data.profilePhotoURL.size() <= 2048));
+    }
+
+    // Validation Blueprint for User Legal Documents
+    function isValidDocument(data) {
+      return data.userId is string &&
+             data.userId == request.auth.uid &&
+             data.fileName is string &&
+             data.fileName.size() >= 1 &&
+             data.fileName.size() <= 255 &&
+             data.fileType is string &&
+             data.fileType.size() <= 60 &&
+             data.status in ['UPLOADED', 'ANALYZED', 'ERROR'] &&
+             (!('summary' in data) || (data.summary is string && data.summary.size() <= 10000)) &&
+             (!('fileURL' in data) || (data.fileURL is string && data.fileURL.size() <= 2048));
+    }
+
+    // USERS COLLECTION
+    // Only the authenticated user can access or edit their own profile document
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false; // Blanket user listing is forbidden to protect PII
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidUser(request.resource.data);
+
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidUser(request.resource.data) &&
+                       request.resource.data.uid == resource.data.uid &&
+                       request.resource.data.email == resource.data.email; // Email changes must follow verified flow
+
+      allow delete: if false; // User deletion requires administrative workflow
+    }
+
+    // DOCUMENTS COLLECTION
+    // Users can only access, query, create, update, and delete their own legal documents
+    match /documents/{documentId} {
+      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      // Query Enforcer: Forces secure formulate of where('userId', '==', auth.uid)
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+                       isValidId(documentId) &&
+                       isValidDocument(request.resource.data);
+
+      allow update: if isSignedIn() &&
+                       isValidId(documentId) &&
+                       resource.data.userId == request.auth.uid &&
+                       isValidDocument(request.resource.data) &&
+                       request.resource.data.userId == resource.data.userId;
+
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+  }
+}

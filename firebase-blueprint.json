@@ -1,0 +1,49 @@
+{
+  "entities": {
+    "users": {
+      "title": "User Profile",
+      "description": "Registered user account profile document",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "fullName": { "type": "string", "maxLength": 100, "description": "Full legal or user name" },
+        "email": { "type": "string", "format": "email", "description": "Primary email address" },
+        "phoneNumber": { "type": "string", "maxLength": 30, "description": "Contact phone number" },
+        "profilePhotoURL": { "type": "string", "maxLength": 2048, "description": "Avatar storage URL or Data URI" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp" }
+      },
+      "required": ["uid", "fullName", "email"]
+    },
+    "documents": {
+      "title": "User Legal Document",
+      "description": "Private legal document belonging exclusively to the authenticated user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Document unique identifier" },
+        "userId": { "type": "string", "description": "Owner user UID" },
+        "fileName": { "type": "string", "maxLength": 255, "description": "Original file name" },
+        "fileType": { "type": "string", "maxLength": 50, "description": "Document classification category" },
+        "fileURL": { "type": "string", "maxLength": 2048, "description": "File storage reference or URL" },
+        "status": { "type": "string", "enum": ["UPLOADED", "ANALYZED", "ERROR"], "description": "Processing status" },
+        "uploadedAt": { "type": "string", "format": "date-time", "description": "Upload timestamp" },
+        "analyzedAt": { "type": "string", "format": "date-time", "description": "Analysis completion timestamp" },
+        "summary": { "type": "string", "maxLength": 5000, "description": "Executive document summary" },
+        "documentText": { "type": "string", "description": "Full extracted plain legal text" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp" }
+      },
+      "required": ["userId", "fileName", "fileType", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "users",
+      "description": "Isolated user profile document keyed by auth UID"
+    },
+    "/documents/{documentId}": {
+      "schema": "documents",
+      "description": "User legal documents with strict owner isolation"
+    }
+  }
+}
