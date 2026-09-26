@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, useScroll, useReducedMotion } from "motion/react";
 import { SAMPLE_DOCUMENTS } from "./data/sampleDocuments";
 import { PRECOMPUTED_SAMPLE_ANALYSES } from "./data/sampleAnalyses";
 import {
@@ -19,7 +19,6 @@ import { ThemeProvider } from "./context/ThemeContext";
 import { RecentDocumentsProvider, useRecentDocuments } from "./context/RecentDocumentsContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { UserDocumentsProvider, useUserDocuments } from "./context/UserDocumentsContext";
-import { DisclaimerBanner } from "./components/DisclaimerBanner";
 import { Navbar } from "./components/Navbar";
 import { DashboardView } from "./components/DashboardView";
 import { ClauseNavigatorView } from "./components/ClauseNavigatorView";
@@ -34,6 +33,8 @@ import { LegalGlossaryModal } from "./components/LegalGlossaryModal";
 import { ExportPdfModal } from "./components/ExportPdfModal";
 import { FloatingAIAssistant } from "./components/FloatingAIAssistant";
 import { DocumentAnalyzingOverlay } from "./components/DocumentAnalyzingOverlay";
+import { PeekingCatCorner } from "./components/PeekingCatCorner";
+import { AntigravityParticleField } from "./components/AntigravityParticleField";
 
 // Auth & User Account Views
 import { LoginPage } from "./components/LoginPage";
@@ -103,6 +104,8 @@ export function getPathForAuthView(view: AuthPageView): string {
 function AppContent() {
   const { currentUser, loading: authLoading, logout } = useAuth();
   const { saveUserDocument } = useUserDocuments();
+  const { scrollYProgress } = useScroll();
+  const shouldReduceMotion = useReducedMotion();
 
   const [currentDoc, setCurrentDoc] = useState<SampleDocument>(SAMPLE_DOCUMENTS[0]);
   const [activeTab, setActiveTab] = useState<
@@ -454,7 +457,7 @@ function AppContent() {
           </div>
           <div className="space-y-1">
             <h2 className="text-base font-bold font-display text-slate-900 dark:text-white">
-              Legal Document Navigator
+              AI DOCUMENT ANALYSIS
             </h2>
             <div className="flex items-center justify-center gap-2 text-xs text-slate-500">
               <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
@@ -476,20 +479,75 @@ function AppContent() {
         Skip to main legal content
       </a>
 
+      {/* Thin Scroll-Progress Indicator */}
+      <motion.div
+        style={{ scaleX: shouldReduceMotion ? 0 : scrollYProgress }}
+        className="fixed top-0 left-0 right-0 h-[2.5px] bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400 z-50 origin-left pointer-events-none shadow-[0_0_8px_rgba(99,102,241,0.6)]"
+      />
+
       {/* Screen Reader Live Region for Asynchronous Status Announcements */}
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {ariaAnnouncement}
       </div>
 
-      {/* Background ambient lighting */}
-      <div className="ambient-bg pointer-events-none">
+      {/* LAYER 1 (BACKGROUND): Slow gradient movement */}
+      <div className="ambient-bg pointer-events-none" aria-hidden="true">
         <div className="ambient-orb-1" />
         <div className="ambient-orb-2" />
         <div className="ambient-orb-3" />
+        <div className="ambient-orb-4" />
       </div>
 
-      {/* Educational Notice Banner */}
-      <DisclaimerBanner />
+      {/* LAYER 2 (MIDDLE): Subtle Antigravity Particle Field & Floating Geometric Nodes */}
+      <AntigravityParticleField />
+
+      {!shouldReduceMotion && (
+        <div className="fixed inset-0 pointer-events-none overflow-hidden select-none -z-5" aria-hidden="true">
+          {/* Subtle floating decorative nodes with distinct float durations */}
+          <motion.div
+            animate={{
+              y: [0, -14, 0],
+              x: [0, 8, 0],
+              rotate: [0, 20, 0],
+            }}
+            transition={{
+              duration: 9.2,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            className="absolute top-1/4 left-8 w-2 h-2 rounded-full bg-indigo-500/20 blur-[0.5px]"
+          />
+          <motion.div
+            animate={{
+              y: [0, 16, 0],
+              x: [0, -10, 0],
+              rotate: [0, -25, 0],
+            }}
+            transition={{
+              duration: 11.5,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 1,
+            }}
+            className="absolute top-2/3 right-12 w-2.5 h-2.5 rounded-full bg-cyan-400/20 blur-[0.5px]"
+          />
+          <motion.div
+            animate={{
+              y: [0, -10, 0],
+              x: [0, 12, 0],
+            }}
+            transition={{
+              duration: 8.4,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 2,
+            }}
+            className="absolute bottom-1/4 left-1/3 w-1.5 h-1.5 rounded-full bg-purple-400/25 blur-[0.5px]"
+          />
+        </div>
+      )}
+
+      {/* LAYER 3 (FOREGROUND): Floating Navigation, Cards, Buttons, and Document Elements */}
 
       {/* Navigation Header */}
       <Navbar
@@ -508,89 +566,195 @@ function AppContent() {
       />
 
       {/* Main Content Area with Animated Transitions */}
-      <main
+      <motion.main
         id="main-content"
         tabIndex={-1}
         role="main"
-        aria-label="Legal Document Navigator Workspace"
-        className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10 focus:outline-none"
+        aria-label="AI DOCUMENT ANALYSIS Workspace"
+        initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.55, delay: 0.40, ease: [0.16, 1, 0.3, 1] }}
+        className="flex-1 w-full max-w-[1920px] mx-auto px-3 sm:px-6 lg:px-8 xl:px-10 py-4 sm:py-6 pb-24 sm:pb-8 relative z-10 focus:outline-none transition-all duration-300"
       >
+        {/* Animated ambient workspace aura & dynamic scanner beam */}
+        <div className="absolute inset-0 -z-10 pointer-events-none overflow-hidden rounded-3xl select-none" aria-hidden="true">
+          <motion.div
+            animate={{
+              scale: [1, 1.1, 1],
+              opacity: [0.35, 0.55, 0.35],
+              x: [0, 16, 0],
+              y: [0, -12, 0],
+            }}
+            transition={{
+              duration: 10,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            className="absolute -top-20 left-1/4 w-[28rem] h-[28rem] rounded-full bg-gradient-to-br from-indigo-500/15 via-purple-500/10 to-transparent blur-3xl dark:from-indigo-500/25 dark:via-purple-500/15"
+          />
+          <motion.div
+            animate={{
+              scale: [1, 1.14, 1],
+              opacity: [0.25, 0.45, 0.25],
+              x: [0, -22, 0],
+              y: [0, 18, 0],
+            }}
+            transition={{
+              duration: 14,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 1.5,
+            }}
+            className="absolute top-1/3 -right-20 w-[30rem] h-[30rem] rounded-full bg-gradient-to-bl from-amber-500/10 via-rose-500/10 to-transparent blur-3xl dark:from-amber-500/20 dark:via-rose-500/15"
+          />
+          {/* Active analysis or tab scanning laser line */}
+          {isAnalyzing && (
+            <div className="absolute top-0 left-0 right-0 h-[2px] overflow-hidden">
+              <div className="w-full h-full bg-gradient-to-r from-transparent via-indigo-500 to-transparent animate-workspace-scan shadow-[0_0_12px_rgba(99,102,241,0.9)]" />
+            </div>
+          )}
+        </div>
+
         <AnimatePresence mode="wait">
           {/* VIEW: LOGIN PAGE */}
           {currentAuthView === "login" && (
-            <LoginPage
-              onNavigate={navigateAuth}
-              onLoginSuccess={() => navigateAuth("dashboard")}
-            />
+            <motion.div
+              key="view-login"
+              initial={{ opacity: 0, y: 16, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: -12, filter: "blur(2px)" }}
+              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full"
+            >
+              <LoginPage
+                onNavigate={navigateAuth}
+                onLoginSuccess={() => navigateAuth("dashboard")}
+              />
+            </motion.div>
           )}
 
           {/* VIEW: SIGN UP PAGE */}
           {currentAuthView === "signup" && (
-            <SignUpPage
-              onNavigate={navigateAuth}
-              onSignUpSuccess={() => navigateAuth("dashboard")}
-            />
+            <motion.div
+              key="view-signup"
+              initial={{ opacity: 0, y: 16, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: -12, filter: "blur(2px)" }}
+              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full"
+            >
+              <SignUpPage
+                onNavigate={navigateAuth}
+                onSignUpSuccess={() => navigateAuth("dashboard")}
+              />
+            </motion.div>
           )}
 
           {/* VIEW: FORGOT PASSWORD PAGE */}
           {currentAuthView === "forgot-password" && (
-            <ForgotPasswordPage onNavigate={navigateAuth} />
+            <motion.div
+              key="view-forgot-password"
+              initial={{ opacity: 0, y: 16, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: -12, filter: "blur(2px)" }}
+              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full"
+            >
+              <ForgotPasswordPage onNavigate={navigateAuth} />
+            </motion.div>
           )}
 
           {/* VIEW: AUTHENTICATED DASHBOARD */}
           {currentAuthView === "dashboard" && (
-            <AuthenticatedDashboard
-              onNavigate={navigateAuth}
-              onOpenDocumentInNavigator={handleOpenUserDocumentInNavigator}
-              onOpenUploadModal={() => setIsUploadModalOpen(true)}
-              onSwitchToAskAI={() => {
-                navigateAuth("app");
-                setActiveTab("chat");
-              }}
-            />
+            <motion.div
+              key="view-dashboard"
+              initial={{ opacity: 0, y: 16, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: -12, filter: "blur(2px)" }}
+              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full"
+            >
+              <AuthenticatedDashboard
+                onNavigate={navigateAuth}
+                onOpenDocumentInNavigator={handleOpenUserDocumentInNavigator}
+                onOpenUploadModal={() => setIsUploadModalOpen(true)}
+                onSwitchToAskAI={() => {
+                  navigateAuth("app");
+                  setActiveTab("chat");
+                }}
+              />
+            </motion.div>
           )}
 
           {/* VIEW: MY DOCUMENTS */}
           {currentAuthView === "documents" && (
-            <MyDocumentsSection
-              onNavigate={navigateAuth}
-              onOpenDocumentInNavigator={handleOpenUserDocumentInNavigator}
-              onOpenUploadModal={() => setIsUploadModalOpen(true)}
-            />
+            <motion.div
+              key="view-documents"
+              initial={{ opacity: 0, y: 16, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: -12, filter: "blur(2px)" }}
+              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full"
+            >
+              <MyDocumentsSection
+                onNavigate={navigateAuth}
+                onOpenDocumentInNavigator={handleOpenUserDocumentInNavigator}
+                onOpenUploadModal={() => setIsUploadModalOpen(true)}
+              />
+            </motion.div>
           )}
 
           {/* VIEW: USER PROFILE */}
           {currentAuthView === "profile" && (
-            <UserProfilePage
-              onNavigate={navigateAuth}
-              onLogout={async () => {
-                await logout();
-                navigateAuth("app");
-                setActiveTab("overview");
-              }}
-            />
+            <motion.div
+              key="view-profile"
+              initial={{ opacity: 0, y: 16, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: -12, filter: "blur(2px)" }}
+              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full"
+            >
+              <UserProfilePage
+                onNavigate={navigateAuth}
+                onLogout={async () => {
+                  await logout();
+                  navigateAuth("app");
+                  setActiveTab("overview");
+                }}
+              />
+            </motion.div>
           )}
 
           {/* VIEW: SETTINGS */}
           {currentAuthView === "settings" && (
-            <SettingsView
-              onNavigate={navigateAuth}
-              onLogout={async () => {
-                await logout();
-                navigateAuth("app");
-                setActiveTab("overview");
-              }}
-            />
+            <motion.div
+              key="view-settings"
+              initial={{ opacity: 0, y: 16, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: -12, filter: "blur(2px)" }}
+              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full"
+            >
+              <SettingsView
+                onNavigate={navigateAuth}
+                onLogout={async () => {
+                  await logout();
+                  navigateAuth("app");
+                  setActiveTab("overview");
+                }}
+              />
+            </motion.div>
           )}
 
           {/* VIEW: LEGAL DOCUMENT NAVIGATOR CORE APP */}
           {currentAuthView === "app" && (
             <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.22, ease: "easeOut" }}
+              key={`tab-${activeTab}`}
+              initial={{ opacity: 0, y: 16, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: -12, filter: "blur(2px)" }}
+              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full"
             >
               {activeTab === "overview" && (
                 <DashboardView
@@ -676,7 +840,7 @@ function AppContent() {
             </motion.div>
           )}
         </AnimatePresence>
-      </main>
+      </motion.main>
 
       {/* Floating AI Assistant for quick inquiries (when in app view) */}
       {currentAuthView === "app" && (
@@ -693,11 +857,14 @@ function AppContent() {
         documentTitle={currentDoc.title}
       />
 
+      {/* Subtle playful peeking animated SVG cat in corner while document is being processed */}
+      <PeekingCatCorner isAnalyzing={isAnalyzing} />
+
       {/* Footer */}
-      <footer className="glass-panel border-x-0 border-b-0 py-6 mt-12 no-print relative z-10 border-t border-slate-200/80 dark:border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
+      <footer className="glass-panel border-x-0 border-b-0 py-6 mb-16 sm:mb-0 mt-12 no-print relative z-10 border-t border-slate-200/80 dark:border-slate-800">
+        <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-900 dark:text-white">Legal Document Navigator</span>
+            <span className="font-bold text-slate-900 dark:text-white">AI DOCUMENT ANALYSIS</span>
             <span>&bull;</span>
             <span>GenAI Document Accessibility &amp; Strategic Review</span>
           </div>

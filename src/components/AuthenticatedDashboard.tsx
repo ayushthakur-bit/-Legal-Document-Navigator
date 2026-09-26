@@ -17,6 +17,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { useUserDocuments } from "../context/UserDocumentsContext";
 import { AuthPageView, UserDocumentRecord } from "../types";
+import { AnimatedCounter } from "./AnimatedCounter";
 
 interface AuthenticatedDashboardProps {
   onNavigate: (view: AuthPageView) => void;
@@ -87,40 +88,40 @@ export const AuthenticatedDashboard: React.FC<AuthenticatedDashboardProps> = ({
         </div>
       </div>
 
-      {/* Statistics Cards */}
+      {/* Statistics Cards with Count-Up Animations and Premium Card Hover */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Total Documents */}
-        <div className="glass-panel p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-1">
+        <div className="glass-panel p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-1 premium-card-hover">
           <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
             <span>Documents Stored</span>
             <FileText className="w-4 h-4 text-indigo-500" />
           </div>
           <div className="text-3xl font-bold text-slate-900 dark:text-white">
-            {totalDocuments}
+            <AnimatedCounter value={totalDocuments} duration={900} />
           </div>
           <p className="text-[11px] text-slate-400">In private Firebase Firestore collection</p>
         </div>
 
         {/* Analyzed Documents */}
-        <div className="glass-panel p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-1">
+        <div className="glass-panel p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-1 premium-card-hover">
           <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
             <span>Analyzed by AI</span>
             <FileCheck2 className="w-4 h-4 text-emerald-500" />
           </div>
           <div className="text-3xl font-bold text-slate-900 dark:text-white">
-            {analyzedDocuments}
+            <AnimatedCounter value={analyzedDocuments} duration={1000} />
           </div>
           <p className="text-[11px] text-slate-400">Multi-factor risk &amp; clause breakdown</p>
         </div>
 
         {/* Recent Active */}
-        <div className="glass-panel p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-1">
+        <div className="glass-panel p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-1 premium-card-hover">
           <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400">
             <span>Recent Workspace</span>
             <Clock className="w-4 h-4 text-amber-500" />
           </div>
           <div className="text-3xl font-bold text-slate-900 dark:text-white">
-            {recentDocumentsCount}
+            <AnimatedCounter value={recentDocumentsCount} duration={800} />
           </div>
           <p className="text-[11px] text-slate-400">Active session references</p>
         </div>

@@ -525,3 +525,198 @@ export function exportAnalysisAndBriefPdf(
     return false;
   }
 }
+
+/**
+ * Downloads a standardized, printable legal document template format as a PDF.
+ */
+export function downloadLegalFormatPdf(
+  title: string,
+  category: string,
+  fullText: string
+): boolean {
+  try {
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 18;
+    const contentWidth = pageWidth - margin * 2;
+    let y = margin;
+
+    // Header banner
+    doc.setFillColor(37, 99, 235); // Royal Blue
+    doc.roundedRect(margin, y, contentWidth, 13, 2, 2, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10.5);
+    doc.setTextColor(255, 255, 255);
+    doc.text("STANDARD LEGAL DOCUMENT FORMAT TEMPLATE", margin + 4, y + 5.5);
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "normal");
+    doc.text(`CATEGORY: ${category.toUpperCase()} | AI DOCUMENT ANALYSIS REPOSITORY`, margin + 4, y + 9.5);
+
+    y += 18;
+
+    // Document Title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(15, 23, 42);
+    const titleLines = doc.splitTextToSize(title, contentWidth);
+    doc.text(titleLines, margin, y);
+    y += titleLines.length * 6 + 2;
+
+    // Divider line
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.4);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 6;
+
+    // Body content with section heading detection and auto page-break
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+    doc.setTextColor(51, 65, 85);
+
+    const paragraphs = fullText.split("\n");
+    for (const rawLine of paragraphs) {
+      const line = rawLine.trim();
+      if (!line) {
+        y += 3.5;
+        continue;
+      }
+
+      const isHeading =
+        /^[0-9]+\.\s+[A-Z\s&,]+$/.test(line) ||
+        (/^[A-Z\s&,:-]{4,}$/.test(line) && line.length < 50);
+
+      if (isHeading) {
+        y += 2.5;
+        if (y > pageHeight - 22) {
+          doc.addPage();
+          y = margin + 10;
+        }
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(30, 58, 138); // Blue 900
+        const wrapped = doc.splitTextToSize(line, contentWidth);
+        doc.text(wrapped, margin, y);
+        y += wrapped.length * 5 + 2;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9.5);
+        doc.setTextColor(51, 65, 85);
+      } else {
+        const wrapped = doc.splitTextToSize(line, contentWidth);
+        for (const wLine of wrapped) {
+          if (y > pageHeight - 18) {
+            doc.addPage();
+            y = margin + 10;
+          }
+          doc.text(wLine, margin, y);
+          y += 4.5;
+        }
+      }
+    }
+
+    // Footers across all pages
+    const totalPages = doc.internal.pages.length - 1;
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(148, 163, 184);
+      doc.text("AI DOCUMENT ANALYSIS | Standard Formats Repository", margin, pageHeight - 8);
+      doc.text(`Page ${i} of ${totalPages}`, pageWidth - margin, pageHeight - 8, { align: "right" });
+    }
+
+    const cleanName = title.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40);
+    doc.save(`${cleanName}_Format.pdf`);
+    return true;
+  } catch (err) {
+    console.error("Legal format PDF download failed:", err);
+    return false;
+  }
+}
+
+/**
+ * Downloads a standardized legal document template as a Microsoft Word-compatible document (.doc).
+ */
+export function downloadLegalFormatDoc(
+  title: string,
+  category: string,
+  fullText: string
+): boolean {
+  try {
+    const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${title}</title>
+  <style>
+    body { font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; margin: 40px; color: #000; }
+    h1 { font-size: 18pt; text-align: center; margin-bottom: 8px; color: #1e3a8a; }
+    .meta { font-size: 10pt; text-align: center; color: #64748b; margin-bottom: 24px; text-transform: uppercase; }
+    p { margin-bottom: 12pt; white-space: pre-wrap; text-align: justify; }
+    .heading { font-weight: bold; margin-top: 16pt; margin-bottom: 6pt; color: #1e293b; }
+    .footer { font-size: 9pt; color: #94a3b8; text-align: center; margin-top: 40px; border-top: 1px solid #cbd5e1; padding-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>${title}</h1>
+  <div class="meta">Standard Legal Format &bull; Category: ${category} &bull; AI Document Analysis Repository</div>
+  <p>${fullText.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
+  <div class="footer">Generated via AI Document Analysis Legal Formats Library. Informational template only.</div>
+</body>
+</html>`;
+
+    const blob = new Blob([htmlContent], { type: "application/msword;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const cleanName = title.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40);
+    a.download = `${cleanName}_Format.doc`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    return true;
+  } catch (err) {
+    console.error("Legal format DOC download failed:", err);
+    return false;
+  }
+}
+
+/**
+ * Downloads a standardized legal document template as a clean plaintext document (.txt).
+ */
+export function downloadLegalFormatTxt(
+  title: string,
+  category: string,
+  fullText: string
+): boolean {
+  try {
+    const header = `================================================================================
+${title.toUpperCase()}
+Standard Legal Format Template | Category: ${category}
+Source: AI Document Analysis Repository
+================================================================================\n\n`;
+
+    const content = header + fullText;
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const cleanName = title.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40);
+    a.download = `${cleanName}_Format.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    return true;
+  } catch (err) {
+    console.error("Legal format TXT download failed:", err);
+    return false;
+  }
+}
+

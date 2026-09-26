@@ -1,5 +1,9 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence, type Variants } from "motion/react";
+import { useScrollTriggerReveal, useAntigravityScrollCamera } from "../utils/useScrollTriggerReveal";
+import { AnimatedCounter } from "./AnimatedCounter";
+import { AntigravityCard } from "./AntigravityCard";
+import { MagneticButton } from "./MagneticButton";
 import {
   ShieldAlert,
   AlertTriangle,
@@ -77,6 +81,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [animatedScore, setAnimatedScore] = useState(0);
   const [showRiskBreakdown, setShowRiskBreakdown] = useState(false);
   const [selectedTrapModal, setSelectedTrapModal] = useState<HiddenTrap | null>(null);
+
+  const dashboardContainerRef = useRef<HTMLDivElement>(null);
+
+  // GSAP ScrollTrigger animation for revealing major cards with fade + translateY + slight scale
+  useScrollTriggerReveal(dashboardContainerRef, {
+    selector: ".gsap-reveal-card",
+    stagger: 0.09,
+    duration: 0.65,
+    yOffset: 24,
+    scaleFrom: 0.94,
+    start: "top 88%",
+  });
+
+  // Antigravity workspace camera velocity response
+  useAntigravityScrollCamera(dashboardContainerRef);
 
   // Reset document risk analysis action
   const handleResetAnalysis = () => {
@@ -188,44 +207,47 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   return (
     <motion.div
+      ref={dashboardContainerRef}
       variants={containerVariants}
       initial="hidden"
       animate="visible"
       className="space-y-6"
     >
-      {/* Quick Intake & Auto-Detection Banner */}
-      <motion.div
-        variants={itemVariants}
-        className="glass-panel rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-indigo-200/80 dark:border-indigo-900/60 bg-gradient-to-r from-indigo-50/50 via-white/40 to-indigo-50/20 dark:from-indigo-950/40 dark:via-slate-900/40 dark:to-indigo-950/20 shadow-xs"
-      >
-        <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 shrink-0">
-            <UploadCloud className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
-                Upload New Document with AI Auto-Detection
-              </h3>
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                New
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-              Drag &amp; drop any contract, lease, or agreement. The intake engine automatically identifies the document type, contracting parties, and governing jurisdiction.
-            </p>
-          </div>
-        </div>
-
-        <button
-          id="btn-goto-upload-detect"
-          onClick={() => onNavigateToTab("upload")}
-          className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 dark:bg-indigo-600 dark:hover:bg-indigo-500 transition-all shadow-sm shrink-0 cursor-pointer flex items-center gap-1.5 hover:scale-[1.02] active:scale-[0.98]"
+      {/* Quick Intake & Auto-Detection Banner with Antigravity Float */}
+      <AntigravityCard floatDuration={6.5} floatDistance={4} floatRotation={0.5}>
+        <motion.div
+          variants={itemVariants}
+          className="gsap-reveal-card premium-card-hover glass-panel rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-indigo-200/80 dark:border-indigo-900/60 bg-gradient-to-r from-indigo-50/50 via-white/40 to-indigo-50/20 dark:from-indigo-950/40 dark:via-slate-900/40 dark:to-indigo-950/20 shadow-xs"
         >
-          <span>Open Detection Hub</span>
-          <ArrowRight className="w-3.5 h-3.5" />
-        </button>
-      </motion.div>
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 shrink-0">
+              <UploadCloud className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                  Upload New Document with AI Auto-Detection
+                </h3>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                  New
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                Drag &amp; drop any contract, lease, or agreement. The intake engine automatically identifies the document type, contracting parties, and governing jurisdiction.
+              </p>
+            </div>
+          </div>
+
+          <MagneticButton
+            id="btn-goto-upload-detect"
+            onClick={() => onNavigateToTab("upload")}
+            className="w-full sm:w-auto justify-center px-4 py-2.5 sm:py-2 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 dark:bg-indigo-600 dark:hover:bg-indigo-500 transition-all shadow-sm shrink-0 cursor-pointer flex items-center gap-1.5"
+          >
+            <span>Open Detection Hub</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </MagneticButton>
+        </motion.div>
+      </AntigravityCard>
 
       {/* Recently Analyzed Documents Switcher Bar */}
       <motion.div variants={itemVariants}>
@@ -235,8 +257,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         />
       </motion.div>
 
-      {/* CORE LEGAL DOCUMENT NAVIGATOR: SPLIT VIEW (DOCUMENT on left, AI ANALYSIS on right) */}
-      <motion.div variants={itemVariants}>
+      {/* CORE LEGAL DOCUMENT NAVIGATOR: FLOATING SPLIT VIEW (Requirement 4) */}
+      <AntigravityCard
+        purpleGlow={true}
+        floatDuration={7.6}
+        floatDistance={6}
+        floatRotation={0.6}
+        className="gsap-reveal-card"
+      >
         <LegalDocumentSplitNavigator
           documentTitle={documentTitle}
           documentText={documentText || ""}
@@ -245,74 +273,76 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           onSelectClauseTopic={onSelectClauseTopic}
           onAskQuestion={onAskQuestion}
         />
-      </motion.div>
+      </AntigravityCard>
 
       {/* 1. HERO SECTION: Document Risk Analysis & Reading Accessibility */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* DOCUMENT RISK ANALYSIS SECTION */}
-        <motion.div
-          variants={itemVariants}
-          id="section-document-risk-analysis"
-          role="region"
-          aria-label="Document Risk Analysis Overview"
-          className="lg:col-span-2 glass-panel rounded-3xl p-6 relative overflow-hidden transition-all duration-300 hover:shadow-xl group"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
-              <ShieldAlert className={`w-4 h-4 ${activeAnalysis ? "text-rose-500" : "text-amber-500"}`} />
-              Document Risk Analysis
-            </span>
-            <div className="flex items-center gap-2">
-              {activeAnalysis && (
-                <button
-                  type="button"
-                  id="btn-reset-risk-analysis"
-                  onClick={handleResetAnalysis}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 glass-subtle hover:bg-rose-50/80 dark:hover:bg-rose-950/40 border border-slate-200/80 dark:border-slate-700/80 hover:border-rose-300 dark:hover:border-rose-800 transition-all cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-[0.98]"
-                  title="Reset and clear document risk analysis"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Reset</span>
-                </button>
-              )}
-              <span
-                className={`text-xs font-bold px-3 py-1 rounded-full border ${
-                  activeAnalysis
-                    ? riskColor.badge
-                    : "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800"
-                }`}
-              >
-                {activeAnalysis ? riskColor.label : "First upload document"}
-              </span>
-            </div>
-          </div>
-
-          {!activeAnalysis ? (
-            /* EMPTY STATE: First upload document callout */
-            <div className="py-6 px-2 sm:px-6 flex flex-col items-center justify-center text-center">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500/15 via-indigo-500/10 to-amber-500/5 dark:from-amber-500/20 dark:to-indigo-500/10 border border-amber-200/80 dark:border-amber-700/60 flex items-center justify-center mb-4 text-amber-600 dark:text-amber-400 shadow-sm">
-                <UploadCloud className="w-8 h-8" />
+        <div className="lg:col-span-2">
+          <AntigravityCard floatDuration={5.8} floatDistance={5} floatRotation={-0.6}>
+            <motion.div
+              variants={itemVariants}
+              id="section-document-risk-analysis"
+              role="region"
+              aria-label="Document Risk Analysis Overview"
+              className="gsap-reveal-card premium-card-hover glass-panel rounded-3xl p-6 relative overflow-hidden transition-all duration-300 hover:shadow-xl group"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                  <ShieldAlert className={`w-4 h-4 ${activeAnalysis ? "text-rose-500" : "text-amber-500"}`} />
+                  Document Risk Analysis
+                </span>
+                <div className="flex items-center gap-2">
+                  {activeAnalysis && (
+                    <MagneticButton
+                      id="btn-reset-risk-analysis"
+                      type="button"
+                      onClick={handleResetAnalysis}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 glass-subtle hover:bg-rose-50/80 dark:hover:bg-rose-950/40 border border-slate-200/80 dark:border-slate-700/80 hover:border-rose-300 dark:hover:border-rose-800 transition-all cursor-pointer shadow-2xs"
+                      title="Reset and clear document risk analysis"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Reset</span>
+                    </MagneticButton>
+                  )}
+                  <span
+                    className={`text-xs font-bold px-3 py-1 rounded-full border ${
+                      activeAnalysis
+                        ? riskColor.badge
+                        : "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800"
+                    }`}
+                  >
+                    {activeAnalysis ? riskColor.label : "First upload document"}
+                  </span>
+                </div>
               </div>
 
-              <h3 className="font-display font-bold text-xl sm:text-2xl text-slate-900 dark:text-white mb-2">
-                First upload document
-              </h3>
+              {!activeAnalysis ? (
+                /* EMPTY STATE: First upload document callout */
+                <div className="py-6 px-2 sm:px-6 flex flex-col items-center justify-center text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500/15 via-indigo-500/10 to-amber-500/5 dark:from-amber-500/20 dark:to-indigo-500/10 border border-amber-200/80 dark:border-amber-700/60 flex items-center justify-center mb-4 text-amber-600 dark:text-amber-400 shadow-sm">
+                    <UploadCloud className="w-8 h-8" />
+                  </div>
 
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 max-w-lg mb-5 leading-relaxed">
-                Please upload or select a legal document first. The Legal Risk Engine will automatically calculate exposure ratings (0–100), identify predatory traps, and generate an itemized breakdown of weighted risk factors.
-              </p>
+                  <h3 className="font-display font-bold text-xl sm:text-2xl text-slate-900 dark:text-white mb-2">
+                    First upload document
+                  </h3>
 
-              <div className="flex flex-wrap items-center justify-center gap-3 mb-5">
-                <button
-                  id="btn-risk-first-upload"
-                  type="button"
-                  onClick={() => onNavigateToTab("upload")}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs sm:text-sm shadow-md shadow-indigo-600/20 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
-                >
-                  <UploadCloud className="w-4 h-4" />
-                  <span>Upload Document Now</span>
-                </button>
-              </div>
+                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 max-w-lg mb-5 leading-relaxed">
+                    Please upload or select a legal document first. The Legal Risk Engine will automatically calculate exposure ratings (0–100), identify predatory traps, and generate an itemized breakdown of weighted risk factors.
+                  </p>
+
+                  <div className="flex flex-wrap items-center justify-center gap-3 mb-5">
+                    <MagneticButton
+                      id="btn-risk-first-upload"
+                      type="button"
+                      onClick={() => onNavigateToTab("upload")}
+                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs sm:text-sm shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
+                    >
+                      <UploadCloud className="w-4 h-4" />
+                      <span>Upload Document Now</span>
+                    </MagneticButton>
+                  </div>
 
               {/* Sample Document Quick Selection */}
               <div className="w-full pt-4 border-t border-slate-200/60 dark:border-slate-800/80">
@@ -362,7 +392,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     aria-atomic="true"
                   >
                     <span className="text-6xl sm:text-7xl font-display font-extrabold text-slate-900 dark:text-white tracking-tight leading-none">
-                      {animatedScore}
+                      <AnimatedCounter value={animatedScore} duration={1100} />
                     </span>
                     <div className="flex flex-col">
                       <span className="text-lg sm:text-xl font-bold text-slate-400 dark:text-slate-500">/ 100</span>
@@ -450,7 +480,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <div className="flex items-center gap-2">
                   <span className="text-slate-500 dark:text-slate-400 font-medium">Detected Gotchas:</span>
                   <span className="font-bold text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded-md glass-rose">
-                    {activeAnalysis.hiddenTrapsOrGotchas.length} Unfavorable Traps
+                    <AnimatedCounter value={activeAnalysis.hiddenTrapsOrGotchas.length} /> Unfavorable Traps
                   </span>
                 </div>
 
@@ -489,11 +519,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </>
           )}
         </motion.div>
+      </AntigravityCard>
+    </div>
 
-        {/* READING ACCESSIBILITY VISUAL GAUGE */}
+    {/* READING ACCESSIBILITY VISUAL GAUGE with Antigravity Float */}
+    <div>
+      <AntigravityCard floatDuration={8.1} floatDistance={6} floatRotation={0.8}>
         <motion.div
           variants={itemVariants}
-          className="glass-panel rounded-3xl p-6 flex flex-col justify-between transition-all duration-300 hover:shadow-xl"
+          className="gsap-reveal-card premium-card-hover glass-panel rounded-3xl p-6 flex flex-col justify-between transition-all duration-300 hover:shadow-xl"
         >
           <div>
             <div className="flex items-center justify-between mb-3">
@@ -580,14 +614,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 flex items-center gap-1.5 cursor-pointer"
             >
               <BookOpen className="w-3.5 h-3.5" />
-              Legal Glossary {activeAnalysis ? `(${activeAnalysis.legalGlossary.length})` : ""}
+              Legal Glossary {activeAnalysis ? <> (<AnimatedCounter value={activeAnalysis.legalGlossary.length} />)</> : ""}
             </button>
             <span className="text-[11px] text-slate-400">
               {activeAnalysis ? "Readability -54%" : "Awaiting input"}
             </span>
           </div>
         </motion.div>
-      </div>
+      </AntigravityCard>
+    </div>
+  </div>
 
       {/* DOCUMENT SUMMARY & ANALYSIS SECTIONS OR EMPTY PREVIEW */}
       {!activeAnalysis ? (
@@ -661,7 +697,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <h2 className="text-base font-bold font-display text-slate-900 dark:text-white flex items-center gap-2">
                     Potential Red Flags
                     <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
-                      {activeAnalysis.hiddenTrapsOrGotchas.length}
+                      <AnimatedCounter value={activeAnalysis.hiddenTrapsOrGotchas.length} />
                     </span>
                   </h2>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -671,9 +707,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
               <button
                 onClick={() => onNavigateToTab("clauses")}
-                className="text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hidden sm:flex items-center gap-1 cursor-pointer"
+                className="text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-1 cursor-pointer shrink-0"
               >
-                View all clauses <ArrowRight className="w-3.5 h-3.5" />
+                <span>Clauses</span> <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
 
@@ -694,7 +730,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       setSelectedTrapModal(trap);
                     }
                   }}
-                  className="glass-panel rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500/80 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none transition-all duration-200 hover:shadow-lg cursor-pointer flex flex-col justify-between group"
+                  className="gsap-reveal-card premium-card-hover glass-panel rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500/80 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none transition-all duration-200 hover:shadow-lg cursor-pointer flex flex-col justify-between group"
                 >
                   <div>
                     <div className="flex items-start justify-between gap-2 mb-2">
@@ -728,7 +764,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           {/* 3. PLAIN-ENGLISH EXECUTIVE SUMMARY & CRITICAL DEADLINES */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Executive Summary (2 cols) */}
-            <motion.section variants={itemVariants} className="lg:col-span-2 glass-panel rounded-3xl p-6 space-y-4">
+            <motion.section variants={itemVariants} className="lg:col-span-2 gsap-reveal-card premium-card-hover glass-panel rounded-3xl p-6 space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-slate-800/80">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400">
@@ -776,79 +812,84 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               )}
             </motion.section>
 
-            {/* Deadlines & Critical Events (1 col) */}
-            <motion.section variants={itemVariants} className="glass-panel rounded-3xl p-6 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-slate-800/80 mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400">
-                      <Clock className="w-4 h-4" />
+            {/* Deadlines & Critical Events (1 col) with Antigravity Float */}
+            <AntigravityCard floatDuration={6.7} floatDistance={5} floatRotation={0.6}>
+              <motion.section variants={itemVariants} className="gsap-reveal-card premium-card-hover glass-panel rounded-3xl p-6 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-slate-800/80 mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400">
+                        <Clock className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                          Key Deadlines &amp; Timelines
+                        </h3>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                          <AnimatedCounter value={activeAnalysis.keyDatesAndDeadlines.length} /> scheduled triggers
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                        Key Deadlines &amp; Timelines
-                      </h3>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                        {activeAnalysis.keyDatesAndDeadlines.length} scheduled triggers
-                      </p>
-                    </div>
+                  </div>
+
+                  <div className="space-y-2.5 max-h-[260px] overflow-y-auto pr-1 no-scrollbar">
+                    {activeAnalysis.keyDatesAndDeadlines.map((date, idx) => (
+                      <div
+                        key={idx}
+                        className="p-3 rounded-2xl glass-subtle hover:bg-white/80 dark:hover:bg-slate-800/80 border border-slate-200/60 dark:border-slate-800 transition-all"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">
+                            {date.event}
+                          </span>
+                          <span className="text-[10px] font-bold text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/50 px-2 py-0.5 rounded-md shrink-0">
+                            {date.timeframe}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-snug">
+                          {date.actionRequired}
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
-                <div className="space-y-2.5 max-h-[260px] overflow-y-auto pr-1 no-scrollbar">
-                  {activeAnalysis.keyDatesAndDeadlines.map((date, idx) => (
-                    <div
-                      key={idx}
-                      className="p-3 rounded-2xl glass-subtle hover:bg-white/80 dark:hover:bg-slate-800/80 border border-slate-200/60 dark:border-slate-800 transition-all"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">
-                          {date.event}
-                        </span>
-                        <span className="text-[10px] font-bold text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/50 px-2 py-0.5 rounded-md shrink-0">
-                          {date.timeframe}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-snug">
-                        {date.actionRequired}
-                      </p>
-                    </div>
-                  ))}
+                <div className="mt-4 pt-3 border-t border-slate-200/60 dark:border-slate-800/80">
+                  <button
+                    onClick={() => onNavigateToTab("obligations")}
+                    className="w-full py-2 text-xs font-bold text-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 rounded-xl glass-subtle hover:bg-white dark:hover:bg-slate-800 transition-all cursor-pointer"
+                  >
+                    Full Obligations Matrix &rarr;
+                  </button>
                 </div>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-slate-200/60 dark:border-slate-800/80">
-                <button
-                  onClick={() => onNavigateToTab("obligations")}
-                  className="w-full py-2 text-xs font-bold text-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 rounded-xl glass-subtle hover:bg-white dark:hover:bg-slate-800 transition-all cursor-pointer"
-                >
-                  Full Obligations Matrix &rarr;
-                </button>
-              </div>
-            </motion.section>
+              </motion.section>
+            </AntigravityCard>
           </div>
 
-          {/* 4. PRE-SIGNING SAFETY CHECKLIST */}
-          <motion.section variants={itemVariants} className="glass-panel rounded-3xl p-6 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-slate-800/80">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400">
-                  <CheckCircle2 className="w-4 h-4" />
+          {/* 4. PRE-SIGNING SAFETY CHECKLIST with Antigravity Float */}
+          <AntigravityCard floatDuration={7.4} floatDistance={5} floatRotation={-0.6}>
+            <motion.section variants={itemVariants} className="gsap-reveal-card premium-card-hover glass-panel rounded-3xl p-6 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-slate-800/80">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold font-display text-slate-900 dark:text-white">
+                      Pre-Signing Safety Checklist
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Actionable verifications before signing, agreeing, or paying deposits
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-base font-bold font-display text-slate-900 dark:text-white">
-                    Pre-Signing Safety Checklist
-                  </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Actionable verifications before signing, agreeing, or paying deposits
-                  </p>
+                <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                    <AnimatedCounter value={completedChecklistCount} />
+                  </span> of{" "}
+                  <AnimatedCounter value={checklist.length} /> verified
                 </div>
               </div>
-              <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                <span className="text-emerald-600 dark:text-emerald-400 font-bold">{completedChecklistCount}</span> of{" "}
-                {checklist.length} verified
-              </div>
-            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3" role="group" aria-label="Pre-signing verification items">
               {checklist.map((item) => (
@@ -914,8 +955,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </button>
             </div>
           </motion.section>
-        </>
-      )}
+        </AntigravityCard>
+      </>
+    )}
 
       {/* DETAIL MODAL FOR RED FLAG (Req 5) */}
       <AnimatePresence>
@@ -925,7 +967,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               initial={{ scale: 0.92, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.92, opacity: 0 }}
-              className="w-full max-w-lg glass-panel-elevated rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4"
+              className="w-full max-w-lg glass-panel-elevated rounded-3xl p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4 max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-2">

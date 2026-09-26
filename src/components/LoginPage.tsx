@@ -7,6 +7,7 @@ import {
   EyeOff,
   Scale,
   ArrowRight,
+  ArrowLeft,
   Loader2,
   AlertCircle,
   ExternalLink,
@@ -22,6 +23,8 @@ import {
   FIREBASE_CONSOLE_AUTH_URL,
 } from "../context/AuthContext";
 import { AuthPageView } from "../types";
+import { MagneticButton } from "./MagneticButton";
+import { AntigravityCard } from "./AntigravityCard";
 
 interface LoginPageProps {
   onNavigate: (view: AuthPageView) => void;
@@ -111,11 +114,30 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLoginSuccess
 
   return (
     <div className="min-h-[calc(100vh-140px)] flex items-center justify-center py-8 px-4 sm:px-6 lg:px-8">
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full glass-panel-elevated p-6 sm:p-8 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800/80 relative"
-      >
+      <AntigravityCard floatDuration={7.2} floatDistance={6} floatRotation={0.6} className="max-w-md w-full">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full glass-panel-elevated p-6 sm:p-8 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800/80 relative"
+        >
+        {/* Top Back Navigation Bar */}
+        <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-200/80 dark:border-slate-800/80">
+          <button
+            type="button"
+            id="btn-login-back"
+            onClick={() => onNavigate("app")}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white bg-slate-100 hover:bg-slate-200/90 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700/80 transition-all cursor-pointer group shadow-2xs"
+            title="Return to Legal Document Navigator"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 group-hover:-translate-x-0.5 transition-transform" />
+            <span>Back to Document</span>
+          </button>
+
+          <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">
+            Sign In
+          </span>
+        </div>
+
         {/* Header & Logo */}
         <div className="text-center space-y-2 mb-6">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-slate-900 via-indigo-950 to-indigo-900 text-indigo-400 flex items-center justify-center mx-auto shadow-md border border-white/20 dark:border-white/10">
@@ -306,7 +328,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLoginSuccess
           </div>
 
           {/* Sign In Button */}
-          <button
+          <MagneticButton
             type="submit"
             disabled={isLoading || isGoogleLoading}
             className="w-full py-3 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg hover:shadow-indigo-500/25 transition-all cursor-pointer mt-2"
@@ -322,7 +344,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLoginSuccess
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
-          </button>
+          </MagneticButton>
         </form>
 
         {/* Quick Demo Access Button */}
@@ -347,8 +369,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLoginSuccess
             Create an account
           </button>
         </div>
+
+        {/* Secondary back link to return to document */}
+        <div className="mt-3 text-center">
+          <button
+            type="button"
+            onClick={() => onNavigate("app")}
+            className="text-[11px] font-medium text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="w-3 h-3 text-indigo-500" />
+            <span>Return to Legal Document Navigator</span>
+          </button>
+        </div>
       </motion.div>
-    </div>
+    </AntigravityCard>
+  </div>
   );
 };
 

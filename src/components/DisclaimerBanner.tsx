@@ -14,7 +14,7 @@ export const DisclaimerBanner: React.FC = () => {
           aria-label="Legal Informational Assistance and Privacy Notice"
           className="bg-amber-500/10 dark:bg-amber-950/40 border-b border-amber-500/20 text-amber-900 dark:text-amber-200 px-4 py-2 text-xs flex items-center justify-between transition-all relative z-20"
         >
-          <div className="flex items-center gap-2 max-w-7xl mx-auto flex-1 flex-wrap justify-between">
+          <div className="flex items-center gap-2 w-full max-w-[1920px] mx-auto px-1 sm:px-2 flex-1 flex-wrap justify-between">
             <div className="flex items-center gap-2">
               <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
               <span className="font-bold text-amber-950 dark:text-amber-100">⚖️ Important:</span>

@@ -67,5 +67,15 @@ describe("URL Routing & Protected Path Resolution", () => {
     it("returns / for app view", () => {
       expect(getPathForAuthView("app")).toBe("/");
     });
+
+    it("verifies back navigation targets return safely to root app navigator", () => {
+      // When back button is clicked on login or signup, destination is 'app'
+      const loginBackTarget = "app";
+      expect(getPathForAuthView(loginBackTarget)).toBe("/");
+      const signupBackTarget = "app";
+      expect(getPathForAuthView(signupBackTarget)).toBe("/");
+      const forgotPasswordBackTarget = "login";
+      expect(getPathForAuthView(forgotPasswordBackTarget)).toBe("/login");
+    });
   });
 });

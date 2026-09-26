@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { useScrollTriggerReveal } from "../utils/useScrollTriggerReveal";
 import {
   UploadCloud,
   FileText,
@@ -25,12 +26,23 @@ import {
   Tag,
 } from "lucide-react";
 import { DocumentDetectionResult, SampleDocument } from "../types";
+import { AnimatedMovingCat } from "./AnimatedMovingCat";
+import { AntigravityCard } from "./AntigravityCard";
+import { MagneticButton } from "./MagneticButton";
 
 interface DocumentDetectionViewProps {
   onAnalyzeAndLoad: (title: string, text: string, type: string) => void;
   sampleDocuments: SampleDocument[];
   currentDocumentTitle?: string;
 }
+
+const DETECTION_STAGES = [
+  { id: "doc", label: "Document detected", detail: "Format, preambles & structural integrity verified" },
+  { id: "clauses", label: "Clauses detected", detail: "Key provisions, definitions & covenants indexed" },
+  { id: "obligations", label: "Obligations detected", detail: "Active duties, milestones & financial timelines located" },
+  { id: "risks", label: "Risks detected", detail: "Liability exposure, indemnity terms & hidden traps flagged" },
+  { id: "complete", label: "Analysis complete", detail: "Zero-hallucination verification confirmed" },
+];
 
 export const DocumentDetectionView: React.FC<DocumentDetectionViewProps> = ({
   onAnalyzeAndLoad,
@@ -43,6 +55,7 @@ export const DocumentDetectionView: React.FC<DocumentDetectionViewProps> = ({
   const [dragOver, setDragOver] = useState<boolean>(false);
   const [isDetecting, setIsDetecting] = useState<boolean>(false);
   const [detectionStep, setDetectionStep] = useState<string>("");
+  const [stageIndex, setStageIndex] = useState<number>(0);
   const [detectionResult, setDetectionResult] = useState<DocumentDetectionResult | null>(null);
   const [detectionError, setDetectionError] = useState<string | null>(null);
   const [isEditingMetadata, setIsEditingMetadata] = useState<boolean>(false);
@@ -52,6 +65,17 @@ export const DocumentDetectionView: React.FC<DocumentDetectionViewProps> = ({
   const [copiedJson, setCopiedJson] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const detectionContainerRef = useRef<HTMLDivElement>(null);
+
+  // GSAP ScrollTrigger reveal for detection section cards
+  useScrollTriggerReveal(detectionContainerRef, {
+    selector: ".gsap-reveal-card",
+    stagger: 0.1,
+    duration: 0.65,
+    yOffset: 24,
+    scaleFrom: 0.98,
+    start: "top 88%",
+  });
 
   const wordCount = documentText.trim() ? documentText.trim().split(/\s+/).length : 0;
 
@@ -105,15 +129,23 @@ export const DocumentDetectionView: React.FC<DocumentDetectionViewProps> = ({
 
     setIsDetecting(true);
     setDetectionError(null);
-    setDetectionStep("Scanning document structure & preambles...");
+    setStageIndex(0);
+    setDetectionStep(DETECTION_STAGES[0].label);
 
     const stepTimer1 = setTimeout(() => {
-      setDetectionStep("Identifying contracting parties & taxonomy...");
-    }, 600);
+      setStageIndex(1);
+      setDetectionStep(DETECTION_STAGES[1].label);
+    }, 450);
 
     const stepTimer2 = setTimeout(() => {
-      setDetectionStep("Verifying governing jurisdiction & core provisions...");
-    }, 1300);
+      setStageIndex(2);
+      setDetectionStep(DETECTION_STAGES[2].label);
+    }, 900);
+
+    const stepTimer3 = setTimeout(() => {
+      setStageIndex(3);
+      setDetectionStep(DETECTION_STAGES[3].label);
+    }, 1350);
 
     try {
       const res = await fetch("/api/legal/detect", {
@@ -130,9 +162,13 @@ export const DocumentDetectionView: React.FC<DocumentDetectionViewProps> = ({
       }
 
       const data: DocumentDetectionResult = await res.json();
+      setStageIndex(4);
+      setDetectionStep(DETECTION_STAGES[4].label);
       setDetectionResult(data);
       setCustomTitle(data.detectedTitle);
       setCustomCategory(data.category);
+      // Give user time to see the "Analysis complete" triumphant state before dossier transition
+      await new Promise((resolve) => setTimeout(resolve, 600));
     } catch (err: any) {
       console.warn("Detection request error:", err);
       setDetectionError(
@@ -141,6 +177,7 @@ export const DocumentDetectionView: React.FC<DocumentDetectionViewProps> = ({
     } finally {
       clearTimeout(stepTimer1);
       clearTimeout(stepTimer2);
+      clearTimeout(stepTimer3);
       setIsDetecting(false);
     }
   };
@@ -179,20 +216,26 @@ export const DocumentDetectionView: React.FC<DocumentDetectionViewProps> = ({
   };
 
   return (
-    <div id="section-document-detection" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div ref={detectionContainerRef} id="section-document-detection" className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-8 space-y-8">
       {/* Section Header */}
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="glass-panel-elevated p-6 sm:p-8 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-md relative overflow-hidden"
+        className="gsap-reveal-card glass-panel-elevated p-6 sm:p-8 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-md relative overflow-hidden"
       >
         <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/5 rounded-full blur-3xl -z-10 pointer-events-none" />
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/50">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Intelligent Legal Intake</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/50">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Intelligent Legal Intake</span>
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/50">
+                <span>🐾</span>
+                <span>Animated Cat Inspector</span>
+              </div>
             </div>
             <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900 dark:text-white tracking-tight">
               Upload Document &amp; Auto-Detect
@@ -246,7 +289,7 @@ export const DocumentDetectionView: React.FC<DocumentDetectionViewProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left Column: Upload / Paste Controls (5 cols) */}
         <div className="lg:col-span-5 space-y-6">
-          <div className="glass-panel-elevated rounded-3xl border border-slate-200/80 dark:border-slate-800/80 p-6 space-y-5">
+          <div className="glass-panel-elevated rounded-3xl border border-slate-200/80 dark:border-slate-800/80 p-6 space-y-5 premium-card-hover">
             {/* Input Mode Selector */}
             <div className="flex p-1 rounded-2xl glass-subtle border border-slate-200 dark:border-slate-800">
               <button
@@ -288,7 +331,7 @@ export const DocumentDetectionView: React.FC<DocumentDetectionViewProps> = ({
                 onDragLeave={() => setDragOver(false)}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className={`relative border-2 border-dashed rounded-3xl p-8 text-center transition-all cursor-pointer ${
+                className={`relative border-2 border-dashed rounded-3xl p-8 text-center transition-all cursor-pointer overflow-hidden ${
                   dragOver
                     ? "border-indigo-500 bg-indigo-50/30 dark:bg-indigo-950/30"
                     : file
@@ -296,6 +339,18 @@ export const DocumentDetectionView: React.FC<DocumentDetectionViewProps> = ({
                     : "border-slate-300 dark:border-slate-700 bg-slate-50/40 dark:bg-slate-900/30 hover:border-indigo-400 dark:hover:border-indigo-500"
                 }`}
               >
+                {/* Interactive AI Laser Scanning Line across the document area */}
+                {isDetecting && (
+                  <div className="absolute inset-0 pointer-events-none rounded-3xl overflow-hidden z-20">
+                    <motion.div
+                      animate={{ y: ["-5%", "340%", "-5%"] }}
+                      transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+                      className="w-full h-1.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_18px_rgba(6,182,212,0.95)] opacity-95"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/10 via-transparent to-indigo-500/10 pointer-events-none" />
+                  </div>
+                )}
+
                 <input
                   id="input-file-native"
                   type="file"
@@ -352,23 +407,36 @@ export const DocumentDetectionView: React.FC<DocumentDetectionViewProps> = ({
                     {wordCount} words &bull; {documentText.length} chars
                   </span>
                 </div>
-                <textarea
-                  id="textarea-document-detection"
-                  rows={10}
-                  value={documentText}
-                  onChange={(e) => {
-                    setDocumentText(e.target.value);
-                    setDetectionResult(null);
-                  }}
-                  placeholder="Paste the contract text, lease clauses, NDA terms, or policy here..."
-                  className="w-full p-4 text-xs font-mono leading-relaxed glass-input rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 resize-y"
-                />
+                <div className="relative overflow-hidden rounded-2xl">
+                  {/* Interactive AI Laser Scanning Line across paste area */}
+                  {isDetecting && (
+                    <div className="absolute inset-0 pointer-events-none rounded-2xl overflow-hidden z-20">
+                      <motion.div
+                        animate={{ y: ["-5%", "340%", "-5%"] }}
+                        transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+                        className="w-full h-1.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_18px_rgba(6,182,212,0.95)] opacity-95"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/10 via-transparent to-indigo-500/10 pointer-events-none" />
+                    </div>
+                  )}
+                  <textarea
+                    id="textarea-document-detection"
+                    rows={10}
+                    value={documentText}
+                    onChange={(e) => {
+                      setDocumentText(e.target.value);
+                      setDetectionResult(null);
+                    }}
+                    placeholder="Paste the contract text, lease clauses, NDA terms, or policy here..."
+                    className="w-full p-4 text-xs font-mono leading-relaxed glass-input rounded-2xl border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 resize-y"
+                  />
+                </div>
               </div>
             )}
 
             {/* Detection Trigger Button */}
             <div className="pt-2 flex flex-col gap-2">
-              <button
+              <MagneticButton
                 id="btn-trigger-detection"
                 type="button"
                 onClick={handleManualDetectClick}
@@ -386,7 +454,7 @@ export const DocumentDetectionView: React.FC<DocumentDetectionViewProps> = ({
                     <span>Run AI Document Detection</span>
                   </>
                 )}
-              </button>
+              </MagneticButton>
 
               {detectionError && (
                 <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
@@ -433,31 +501,76 @@ export const DocumentDetectionView: React.FC<DocumentDetectionViewProps> = ({
               >
                 <div className="absolute inset-0 bg-radial from-indigo-500/10 via-transparent to-transparent animate-pulse pointer-events-none" />
 
-                <div className="relative mx-auto w-20 h-20">
-                  <div className="absolute inset-0 rounded-full border-4 border-indigo-500/20 animate-ping" />
-                  <div className="w-20 h-20 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg relative z-10">
-                    <Sparkles className="w-9 h-9 animate-spin" />
-                  </div>
-                </div>
+                {/* Animated Moving Cat Inspector */}
+                <AnimatedMovingCat
+                  statusText={detectionStep || "Classifying document taxonomy & sniffing out traps..."}
+                  size="md"
+                />
 
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <h3 className="text-lg sm:text-xl font-bold font-display text-slate-900 dark:text-white">
                     Inspecting Legal Document
                   </h3>
-                  <p className="text-xs sm:text-sm font-medium text-indigo-600 dark:text-indigo-400 animate-pulse">
+                  <p className="text-xs sm:text-sm font-semibold text-indigo-600 dark:text-indigo-400">
                     {detectionStep || "Classifying document taxonomy..."}
                   </p>
                 </div>
 
-                {/* Progress bars simulation */}
-                <div className="max-w-xs mx-auto space-y-2 text-left text-[11px] text-slate-500 dark:text-slate-400 pt-4">
-                  <div className="flex items-center justify-between">
-                    <span>Parties &amp; Recitals</span>
-                    <span className="text-emerald-500 font-bold">Verified</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-indigo-600 rounded-full animate-[progress_1.5s_ease-in-out_infinite]" style={{ width: "80%" }} />
-                  </div>
+                {/* Progressive AI Detection States: Document, Clauses, Obligations, Risks, Complete */}
+                <div className="max-w-md mx-auto space-y-2.5 text-left pt-2">
+                  {DETECTION_STAGES.map((stage, idx) => {
+                    const isDone = stageIndex > idx;
+                    const isCurrent = stageIndex === idx;
+
+                    return (
+                      <div
+                        key={stage.id}
+                        className={`p-3 rounded-2xl border transition-all duration-300 flex items-center justify-between gap-3 ${
+                          isDone
+                            ? "bg-emerald-50/70 dark:bg-emerald-950/50 border-emerald-300 dark:border-emerald-800/80 shadow-2xs"
+                            : isCurrent
+                            ? "bg-indigo-50/80 dark:bg-indigo-950/70 border-indigo-400 dark:border-indigo-600 shadow-sm ring-1 ring-indigo-400/30"
+                            : "bg-slate-50/40 dark:bg-slate-900/30 border-slate-200/60 dark:border-slate-800/60 opacity-45"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0">
+                            {isDone ? (
+                              <CheckCircle2 className="w-4 h-4 text-emerald-500 animate-in zoom-in-75 duration-200" />
+                            ) : isCurrent ? (
+                              <div className="w-2.5 h-2.5 rounded-full bg-indigo-600 animate-ping" />
+                            ) : (
+                              <div className="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-700" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <span className={`text-xs font-bold block truncate ${
+                              isDone
+                                ? "text-emerald-800 dark:text-emerald-300"
+                                : isCurrent
+                                ? "text-indigo-700 dark:text-indigo-300 font-extrabold"
+                                : "text-slate-500 dark:text-slate-400"
+                            }`}>
+                              {stage.label}
+                            </span>
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 block truncate">
+                              {stage.detail}
+                            </span>
+                          </div>
+                        </div>
+
+                        <span className={`text-[10px] font-bold uppercase tracking-wider shrink-0 px-2.5 py-0.5 rounded-full ${
+                          isDone
+                            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/70 dark:text-emerald-300"
+                            : isCurrent
+                            ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/70 dark:text-indigo-300 animate-pulse"
+                            : "text-slate-400"
+                        }`}>
+                          {isDone ? "Verified" : isCurrent ? "Scanning..." : "Pending"}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </motion.div>
             ) : detectionResult ? (
@@ -855,16 +968,16 @@ export const DocumentDetectionView: React.FC<DocumentDetectionViewProps> = ({
 
                 {/* Primary Action Button */}
                 <div className="pt-2">
-                  <button
+                  <MagneticButton
                     id="btn-confirm-and-analyze"
                     type="button"
                     onClick={handleProceedWithAnalysis}
-                    className="w-full py-3.5 px-6 rounded-2xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg hover:shadow-indigo-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01] active:scale-[0.99]"
+                    className="w-full py-3.5 px-6 rounded-2xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg hover:shadow-indigo-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Sparkles className="w-4 h-4" />
                     <span>Analyze &amp; Open in Legal Navigator</span>
                     <ArrowRight className="w-4 h-4" />
-                  </button>
+                  </MagneticButton>
                   <p className="text-center text-[11px] text-slate-400 mt-2">
                     Loads into Overview, Clauses, Obligations Matrix, Redline Comparison, and Grounded Q&amp;A
                   </p>
@@ -892,7 +1005,24 @@ export const DocumentDetectionView: React.FC<DocumentDetectionViewProps> = ({
                   </p>
                 </div>
 
-                <div className="pt-4 flex flex-wrap justify-center gap-2 text-[11px] text-slate-400">
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    id="btn-cat-test-scan"
+                    onClick={() => {
+                      if (sampleDocuments.length > 0) {
+                        handleSampleSelect(sampleDocuments[0]);
+                      }
+                    }}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-indigo-50 dark:bg-indigo-950/70 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/80 text-xs font-bold transition-all shadow-xs cursor-pointer hover:scale-105 active:scale-95"
+                    title="Watch the animated cat inspect a sample contract"
+                  >
+                    <span>🐾</span>
+                    <span>Test Animated Cat Document Detection</span>
+                  </button>
+                </div>
+
+                <div className="pt-2 flex flex-wrap justify-center gap-2 text-[11px] text-slate-400">
                   <span className="px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800/60">
                     &bull; Non-Disclosure Agreements
                   </span>

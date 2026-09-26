@@ -268,8 +268,63 @@ export const ContractComparisonView: React.FC<ContractComparisonViewProps> = ({
           </span>
         </div>
 
-        {/* Comparison Table */}
-        <div className="overflow-x-auto">
+        {/* Mobile View: Stacked Comparison Cards (< sm screens) */}
+        <div className="sm:hidden space-y-3">
+          {defaultTermRows.map((row, idx) => (
+            <div
+              key={idx}
+              className="p-4 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 space-y-2.5 shadow-2xs"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-slate-900 dark:text-white">
+                  {row.label}
+                </span>
+                {row.status === "UNFAVORABLE" && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300">
+                    <AlertTriangle className="w-2.5 h-2.5" /> Unfavorable
+                  </span>
+                )}
+                {row.status === "FAVORABLE" && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
+                    <CheckCircle2 className="w-2.5 h-2.5" /> Improved
+                  </span>
+                )}
+                {row.status === "CHANGED" && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                    Modified
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-850 dark:bg-[#151c2e] border border-slate-200/80 dark:border-slate-800">
+                  <div className="text-[10px] text-slate-400 font-semibold mb-0.5">Original (Doc A)</div>
+                  <div className="font-mono text-slate-700 dark:text-slate-300 font-medium text-[11px]">{row.docAValue}</div>
+                </div>
+
+                <div className={`p-2.5 rounded-xl border ${
+                  row.status === "UNFAVORABLE"
+                    ? "bg-rose-50/60 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/60"
+                    : row.status === "FAVORABLE"
+                    ? "bg-emerald-50/60 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/60"
+                    : "bg-slate-50 dark:bg-slate-850 border-slate-200 dark:border-slate-800"
+                }`}>
+                  <div className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold mb-0.5">Counter (Doc B)</div>
+                  <div className="font-mono font-bold text-[11px] text-slate-900 dark:text-white">{row.docBValue}</div>
+                </div>
+              </div>
+
+              {row.note && (
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 italic">
+                  Note: {row.note}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop View: Comparison Table */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-400 uppercase tracking-wider">

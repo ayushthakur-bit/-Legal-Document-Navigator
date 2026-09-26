@@ -52,6 +52,28 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
         animate={{ opacity: 1, y: 0 }}
         className="max-w-md w-full glass-panel-elevated p-6 sm:p-8 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800/80 relative"
       >
+        {/* Top Back Navigation Bar */}
+        <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-200/80 dark:border-slate-800/80">
+          <button
+            type="button"
+            id="btn-forgot-back"
+            onClick={() => onNavigate("login")}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white bg-slate-100 hover:bg-slate-200/90 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700/80 transition-all cursor-pointer group shadow-2xs"
+            title="Return to Login"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 group-hover:-translate-x-0.5 transition-transform" />
+            <span>Back to Login</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onNavigate("app")}
+            className="text-xs font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors cursor-pointer"
+          >
+            Document Navigator
+          </button>
+        </div>
+
         {/* Header */}
         <div className="text-center space-y-2 mb-6">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-slate-900 via-indigo-950 to-indigo-900 text-indigo-400 flex items-center justify-center mx-auto shadow-md border border-white/20 dark:border-white/10">

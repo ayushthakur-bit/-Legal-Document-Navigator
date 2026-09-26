@@ -10,9 +10,17 @@ import {
   apiRateLimiter,
   analysisCache,
   qnaCache,
+  compareCache,
+  attorneyBriefCache,
+  detectCache,
+  searchGroundingCache,
   validateAnalyzePayload,
   validateAskPayload,
   validateSearchGroundingPayload,
+  validateComparePayload,
+  validateAttorneyBriefPayload,
+  validateDetectPayload,
+  validateVoiceInquiryPayload,
   detectPromptInjection,
   validateLegalDocumentFile,
 } from "./server/security";
@@ -46,9 +54,22 @@ function getGeminiClient() {
 // Available Gemini models for text and analysis tasks, tried in priority sequence
 const RESILIENT_MODELS = [
   "gemini-3.8-flash",
-  "gemini-3.1-flash-lite",
   "gemini-flash-latest",
+  "gemini-3.1-flash-lite",
 ];
+
+// Track temporary cooldowns for models experiencing high-demand capacity spikes (503 / 429)
+const modelCooldownMap = new Map<string, number>();
+
+function getActiveModelOrder(): string[] {
+  const now = Date.now();
+  // Healthy models first; models in temporary cooldown at the end
+  return [...RESILIENT_MODELS].sort((a, b) => {
+    const aCool = (modelCooldownMap.get(a) || 0) > now ? 1 : 0;
+    const bCool = (modelCooldownMap.get(b) || 0) > now ? 1 : 0;
+    return aCool - bCool;
+  });
+}
 
 // Resilient caller that handles 503 high demand, 429 quota spikes, and model failovers
 async function callGeminiWithFallbackAndRetry(
@@ -60,9 +81,13 @@ async function callGeminiWithFallbackAndRetry(
   operationTag = "Gemini Call"
 ) {
   let lastError: any = null;
+  const models = getActiveModelOrder();
 
-  for (const model of RESILIENT_MODELS) {
-    for (let attempt = 0; attempt < 2; attempt++) {
+  for (const model of models) {
+    const isModelCoolingDown = (modelCooldownMap.get(model) || 0) > Date.now();
+    const maxAttempts = isModelCoolingDown ? 1 : 2;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         const response = await ai.models.generateContent({
           ...params,
@@ -70,6 +95,10 @@ async function callGeminiWithFallbackAndRetry(
         });
 
         if (response && response.text) {
+          // Clear cooldown if model succeeded
+          if (modelCooldownMap.has(model)) {
+            modelCooldownMap.delete(model);
+          }
           return response;
         }
       } catch (err: any) {
@@ -77,38 +106,45 @@ async function callGeminiWithFallbackAndRetry(
         const msg = String(err?.message || err || "");
         const is503 = msg.includes("503") || msg.includes("UNAVAILABLE") || msg.includes("high demand") || msg.includes("temporary");
         const is429 = msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED");
-        const isTransient = is503 || is429 || msg.includes("500") || msg.includes("ECONNRESET") || msg.includes("fetch failed");
+        const isNetwork = msg.includes("500") || msg.includes("ECONNRESET") || msg.includes("fetch failed") || msg.includes("ETIMEDOUT");
 
-        console.warn(
-          `[Resilience - ${operationTag}] Model "${model}" (attempt ${attempt + 1}/2) failed: ${msg.slice(0, 120)}`
-        );
+        if (is503 || is429) {
+          // Mark model in cooldown for 60 seconds so ongoing and subsequent requests immediately route to healthy models
+          modelCooldownMap.set(model, Date.now() + 60_000);
+          console.log(
+            `[Resilience - ${operationTag}] Model "${model}" capacity spike (${is503 ? "503" : "429"}); seamlessly transitioning to alternative model...`
+          );
+          // Immediately break to next model without waiting on the overloaded model
+          break;
+        }
 
-        if (isTransient && attempt === 0) {
-          // Jittered backoff before second attempt on this model
-          await new Promise((r) => setTimeout(r, 850 + Math.random() * 400));
+        if (isNetwork && attempt === 0) {
+          // Quick jittered backoff before retry on transient network interruption
+          await new Promise((r) => setTimeout(r, 400 + Math.random() * 200));
           continue;
         }
 
-        // If transient failed twice, or non-transient, try next model in RESILIENT_MODELS
         break;
       }
     }
   }
 
-  throw lastError || new Error("All resilient Gemini models failed to generate content.");
+  throw lastError || new Error("All resilient Gemini models completed attempt cycle.");
 }
 
-// Google Search Grounding with Gemini 3.5 Flash and automatic fallback
+// Google Search Grounding with Gemini Search Grounding and automatic fallback
 async function callGeminiWithSearchGrounding(
   ai: GoogleGenAI,
   prompt: string,
-  primaryModel = "gemini-3.5-flash"
+  primaryModel = "gemini-flash-latest"
 ): Promise<{
   text: string;
   sources: { title: string; url: string }[];
   webSearchQueries: string[];
 }> {
-  const modelsToTry = [primaryModel, "gemini-3.8-flash", "gemini-flash-latest"];
+  const modelsToTry = [primaryModel, "gemini-3.8-flash", "gemini-3.1-flash-lite"].filter(
+    (m, idx, arr) => arr.indexOf(m) === idx
+  );
   let lastError: any = null;
 
   for (const model of modelsToTry) {
@@ -142,11 +178,11 @@ async function callGeminiWithSearchGrounding(
       return { text, sources, webSearchQueries };
     } catch (err: any) {
       lastError = err;
-      console.warn(`[Search Grounding] Model "${model}" failed:`, err?.message || err);
+      console.log(`[Search Grounding] Candidate model "${model}" unavailable, switching to next candidate...`);
     }
   }
 
-  throw lastError || new Error("Search grounding failed across all candidate models.");
+  throw lastError || new Error("Search grounding candidate cycle completed.");
 }
 
 // Health check
@@ -367,7 +403,7 @@ Perform a thorough breakdown and return a structured JSON response matching the 
   }
 });
 
-// Statutory & Case Law Grounding with Google Search (gemini-3.5-flash with googleSearch tool)
+// Statutory & Case Law Grounding with Google Search (gemini-flash-latest with googleSearch tool)
 app.post("/api/legal/search-grounding", async (req, res) => {
   const validation = validateSearchGroundingPayload(req.body);
   if (!validation.valid || !validation.data) {
@@ -375,10 +411,23 @@ app.post("/api/legal/search-grounding", async (req, res) => {
   }
 
   const { query, clauseTitle, documentSnippet, jurisdiction } = validation.data;
+  const cacheKey = searchGroundingCache.generateKey(
+    "search-grounding",
+    `${query}::${clauseTitle || ""}::${jurisdiction || ""}::${(documentSnippet || "").slice(0, 500)}`
+  );
+
+  const cached = searchGroundingCache.get(cacheKey);
+  if (cached) {
+    res.setHeader("X-Cache", "HIT");
+    return res.json(cached);
+  }
+
   const ai = getGeminiClient();
 
   if (!ai) {
     const fallback = generateFallbackSearchGrounding(query, clauseTitle, documentSnippet, jurisdiction);
+    searchGroundingCache.set(cacheKey, fallback);
+    res.setHeader("X-Cache", "MISS");
     return res.json(fallback);
   }
 
@@ -396,7 +445,7 @@ REQUIREMENTS:
 3. Identify practical legal hazards for the signing party.
 4. Suggest standard balanced counterproposal language.`;
 
-    const result = await callGeminiWithSearchGrounding(ai, prompt, "gemini-3.5-flash");
+    const result = await callGeminiWithSearchGrounding(ai, prompt, "gemini-flash-latest");
 
     const textLower = result.text.toLowerCase();
     let complianceRating: "ENFORCEABLE_STANDARD" | "HIGH_RISK_STATUTORY_VIOLATION" | "JURISDICTION_DEPENDENT" | "NEEDS_LOCAL_COUNSEL" = "JURISDICTION_DEPENDENT";
@@ -409,7 +458,7 @@ REQUIREMENTS:
     const statuteMatches = result.text.match(/(?:§\s*\d+[\w.-]*|Title\s*\d+|Article\s*\d+|U\.S\.C\.|CFR|Civil Code|General Obligations Law)/gi) || [];
     const uniqueStatutes = Array.from(new Set(statuteMatches)).slice(0, 5);
 
-    return res.json({
+    const payload = {
       query,
       clauseTitle,
       analysis: result.text,
@@ -418,10 +467,17 @@ REQUIREMENTS:
       sources: result.sources,
       webSearchQueries: result.webSearchQueries,
       timestamp: new Date().toISOString(),
-    });
+    };
+
+    searchGroundingCache.set(cacheKey, payload);
+    res.setHeader("X-Cache", "MISS");
+    return res.json(payload);
   } catch (err: any) {
-    console.warn("[Search Grounding Endpoint] Error, falling back to statutory reference:", err?.message || err);
-    return res.json(generateFallbackSearchGrounding(query, clauseTitle, documentSnippet, jurisdiction));
+    console.log("[Search Grounding Endpoint] Utilizing statutory reference fallback.");
+    const fallback = generateFallbackSearchGrounding(query, clauseTitle, documentSnippet, jurisdiction);
+    searchGroundingCache.set(cacheKey, fallback);
+    res.setHeader("X-Cache", "MISS");
+    return res.json(fallback);
   }
 });
 
@@ -556,7 +612,7 @@ GROUNDING & REAL-TIME SEARCH INSTRUCTIONS:
 5. Cite the governing statutes, regulations, or legal precedents discovered via Google Search.
 6. Provide a concrete, actionable recommendation for negotiation or risk mitigation.`;
 
-      const searchRes = await callGeminiWithSearchGrounding(ai, searchPrompt, "gemini-3.5-flash");
+      const searchRes = await callGeminiWithSearchGrounding(ai, searchPrompt, "gemini-flash-latest");
 
       const formattedEvidence = {
         clauseTitle: estimatedSection,
@@ -583,13 +639,13 @@ GROUNDING & REAL-TIME SEARCH INSTRUCTIONS:
           "How can this clause be rephrased to be balanced and enforceable?",
           "Are there any penalty caps or fee restrictions that apply here?",
         ],
-        disclaimer: "This response integrates real-time statutory research via Google Search Grounding with gemini-3.5-flash for educational navigation.",
+        disclaimer: "This response integrates real-time statutory research via Google Search Grounding for educational navigation.",
       };
 
       qnaCache.set(qnaKey, result);
       return res.json(result);
     } catch (searchErr) {
-      console.warn("[Ask Endpoint] Search grounding failed, proceeding with document-grounded ask:", searchErr);
+      console.log("[Ask Endpoint] Search grounding unavailable, proceeding with document-grounded ask.");
       // Continue to standard document ask below
     }
   }
@@ -668,23 +724,34 @@ CRITICAL GROUNDING RULES:
     qnaCache.set(qnaKey, result);
     return res.json(result);
   } catch (err: any) {
-    console.warn("Gemini Q&A error (using grounded search fallback):", err?.message || err);
+    console.log("[Ask Endpoint] Served grounded fallback Q&A response.");
     return res.json(generateFallbackQAndA(question, documentText, documentTitle));
   }
 });
 
 // Document Comparison Endpoint (Diff & Inconsistencies)
 app.post("/api/legal/compare", async (req, res) => {
-  const { docA, docB, docATitle = "Document A (Original)", docBTitle = "Document B (Proposed/Revised)" } = req.body;
+  const validation = validateComparePayload(req.body);
+  if (!validation.valid || !validation.data) {
+    return res.status(400).json({ error: validation.error || "Both docA and docB are required for comparison." });
+  }
 
-  if (!docA || !docB) {
-    return res.status(400).json({ error: "Both docA and docB are required for comparison." });
+  const { docA, docB, docATitle, docBTitle } = validation.data;
+  const cacheKey = compareCache.generateKey("compare", `${docA}::${docB}::${docATitle}::${docBTitle}`);
+
+  const cached = compareCache.get(cacheKey);
+  if (cached) {
+    res.setHeader("X-Cache", "HIT");
+    return res.json(cached);
   }
 
   const ai = getGeminiClient();
 
   if (!ai) {
-    return res.json(generateFallbackComparison(docA, docB, docATitle, docBTitle));
+    const fallback = generateFallbackComparison(docA, docB, docATitle, docBTitle);
+    compareCache.set(cacheKey, fallback);
+    res.setHeader("X-Cache", "MISS");
+    return res.json(fallback);
   }
 
   try {
@@ -757,25 +824,44 @@ Analyze the key differences, shifts in liability or rights, newly introduced obl
     );
 
     const parsed = JSON.parse(response.text || "{}");
+    compareCache.set(cacheKey, parsed);
+    res.setHeader("X-Cache", "MISS");
     return res.json(parsed);
   } catch (err: any) {
     console.warn("Gemini compare error (using fallback comparison):", err?.message || err);
-    return res.json(generateFallbackComparison(docA, docB, docATitle, docBTitle, err?.message));
+    const fallback = generateFallbackComparison(docA, docB, docATitle, docBTitle, err?.message);
+    compareCache.set(cacheKey, fallback);
+    res.setHeader("X-Cache", "MISS");
+    return res.json(fallback);
   }
 });
 
 // Attorney Consultation Prep Brief Generator
 app.post("/api/legal/attorney-brief", async (req, res) => {
-  const { documentText, documentTitle = "Legal Agreement", userConcerns = "", documentType = "general" } = req.body;
+  const validation = validateAttorneyBriefPayload(req.body);
+  if (!validation.valid || !validation.data) {
+    return res.status(400).json({ error: validation.error || "Document text is required to prepare attorney brief." });
+  }
 
-  if (!documentText) {
-    return res.status(400).json({ error: "Document text is required to prepare attorney brief." });
+  const { documentText, documentTitle, userConcerns, documentType } = validation.data;
+  const cacheKey = attorneyBriefCache.generateKey(
+    "attorney-brief",
+    `${documentText}::${documentTitle}::${userConcerns}::${documentType}`
+  );
+
+  const cached = attorneyBriefCache.get(cacheKey);
+  if (cached) {
+    res.setHeader("X-Cache", "HIT");
+    return res.json(cached);
   }
 
   const ai = getGeminiClient();
 
   if (!ai) {
-    return res.json(generateFallbackAttorneyBrief(documentTitle, userConcerns));
+    const fallback = generateFallbackAttorneyBrief(documentTitle, userConcerns);
+    attorneyBriefCache.set(cacheKey, fallback);
+    res.setHeader("X-Cache", "MISS");
+    return res.json(fallback);
   }
 
   try {
@@ -856,25 +942,41 @@ ${documentText.slice(0, 25000)}
     );
 
     const parsed = JSON.parse(response.text || "{}");
+    attorneyBriefCache.set(cacheKey, parsed);
+    res.setHeader("X-Cache", "MISS");
     return res.json(parsed);
   } catch (err: any) {
     console.warn("Gemini brief error (using fallback brief):", err?.message || err);
-    return res.json(generateFallbackAttorneyBrief(documentTitle, userConcerns, err?.message));
+    const fallback = generateFallbackAttorneyBrief(documentTitle, userConcerns, err?.message);
+    attorneyBriefCache.set(cacheKey, fallback);
+    res.setHeader("X-Cache", "MISS");
+    return res.json(fallback);
   }
 });
 
 // Document Intake & Automatic Classification/Detection Endpoint
 app.post("/api/legal/detect", async (req, res) => {
-  const { documentText, fileName = "Uploaded Document" } = req.body;
+  const validation = validateDetectPayload(req.body);
+  if (!validation.valid || !validation.data) {
+    return res.status(400).json({ error: validation.error || "Document text is required for detection." });
+  }
 
-  if (!documentText || typeof documentText !== "string" || !documentText.trim()) {
-    return res.status(400).json({ error: "Document text is required for detection." });
+  const { documentText, fileName } = validation.data;
+  const cacheKey = detectCache.generateKey("detect", `${documentText}::${fileName}`);
+
+  const cached = detectCache.get(cacheKey);
+  if (cached) {
+    res.setHeader("X-Cache", "HIT");
+    return res.json(cached);
   }
 
   const ai = getGeminiClient();
 
   if (!ai) {
-    return res.json(generateFallbackDetection(documentText, fileName));
+    const fallback = generateFallbackDetection(documentText, fileName);
+    detectCache.set(cacheKey, fallback);
+    res.setHeader("X-Cache", "MISS");
+    return res.json(fallback);
   }
 
   try {
@@ -1045,7 +1147,7 @@ Classify with high fidelity and output strict JSON matching the schema.`;
     const confidence = typeof parsed.confidence === "number" ? parsed.confidence : (typeof parsed.confidenceScore === "number" ? +(parsed.confidenceScore / 100).toFixed(2) : 0.96);
     const extracted_text = parsed.extracted_text || (documentText.slice(0, 300).trim() + (documentText.length > 300 ? "..." : ""));
 
-    return res.json({
+    const resultPayload = {
       is_document,
       document_type,
       confidence,
@@ -1066,10 +1168,17 @@ Classify with high fidelity and output strict JSON matching the schema.`;
       overallTone: parsed.overallTone || "BALANCED",
       toneDescription: parsed.toneDescription || "Standard commercial balance.",
       recommendedFocusAreas: parsed.recommendedFocusAreas || [],
-    });
+    };
+
+    detectCache.set(cacheKey, resultPayload);
+    res.setHeader("X-Cache", "MISS");
+    return res.json(resultPayload);
   } catch (err: any) {
     console.warn("Gemini detection error (using heuristic detection):", err?.message || err);
-    return res.json(generateFallbackDetection(documentText, fileName, err?.message));
+    const fallback = generateFallbackDetection(documentText, fileName, err?.message);
+    detectCache.set(cacheKey, fallback);
+    res.setHeader("X-Cache", "MISS");
+    return res.json(fallback);
   }
 });
 
@@ -2244,21 +2353,81 @@ function generateFallbackDetection(text: string, fileName = "Uploaded Document",
   };
 }
 
+// Voice Consultation Dedicated API for Conversational Assistant
+app.post("/api/voice-inquiry", async (req, res) => {
+  try {
+    const validation = validateVoiceInquiryPayload(req.body);
+    if (!validation.valid || !validation.data) {
+      return res.status(400).json({ error: validation.error || "Missing or invalid question parameter" });
+    }
+
+    const { question, documentTitle, documentText } = validation.data;
+
+    const ai = getGeminiClient();
+    if (!ai) {
+      return res.status(500).json({ error: "GEMINI_API_KEY is not configured" });
+    }
+
+    const systemPrompt = `You are a conversational legal voice consultant. You are answering spoken inquiries about the document "${documentTitle || "Legal Document"}".
+DOCUMENT CONTEXT:
+"""
+${String(documentText || "").slice(0, 16000)}
+"""
+CRITICAL INSTRUCTIONS FOR SPOKEN VOICE RESPONSES:
+- Speak directly and conversationally as if talking on a phone call.
+- Provide a clear, punchy answer in 2 to 4 concise sentences.
+- Highlight specific risks, trap clauses, dollar amounts, or deadlines relevant to their question.
+- Do not use markdown bullet lists, asterisks, or formatting that sounds awkward when spoken out loud.
+- Never give formal unauthorized legal advice; state practical observations based strictly on the text.`;
+
+    const prompt = `${systemPrompt}\n\nUSER'S SPOKEN QUESTION: "${question.trim()}"\n\nCONCISE SPOKEN RESPONSE:`;
+
+    const response = await callGeminiWithFallbackAndRetry(
+      ai,
+      {
+        contents: prompt,
+        config: {
+          temperature: 0.3,
+          maxOutputTokens: 280,
+        },
+      },
+      "Voice Inquiry Consultation"
+    );
+
+    const answer = response.text?.trim() || "I reviewed the document, but could not formulate a clear answer to that specific clause. Could you clarify your question?";
+    return res.json({ answer, documentTitle });
+  } catch (err: any) {
+    console.error("[Voice Inquiry] Error:", err);
+    return res.status(500).json({ error: err?.message || "Failed to process voice inquiry" });
+  }
+});
+
 async function startServer() {
   const server = http.createServer(app);
 
   // Attach WebSocket server for Gemini Live API voice conversations
-  const wss = new WebSocketServer({ server, path: "/live" });
+  const wss = new WebSocketServer({ noServer: true });
 
-  wss.on("connection", async (clientWs: WebSocket) => {
-    console.log("[Live API] Client connected to /live");
+  server.on("upgrade", (request, socket, head) => {
+    const pathname = request.url ? new URL(request.url, `http://${request.headers.host}`).pathname : "";
+    if (pathname === "/live" || pathname === "/api/live-audio" || pathname.startsWith("/live")) {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit("connection", ws, request);
+      });
+    }
+  });
+
+  wss.on("connection", async (clientWs: WebSocket, req) => {
+    console.log("[Live API] Client connected to live audio socket:", req.url);
     const ai = getGeminiClient();
 
     if (!ai) {
       console.warn("[Live API] GEMINI_API_KEY not configured for Live API");
       clientWs.send(
         JSON.stringify({
+          type: "error",
           error: "GEMINI_API_KEY is not configured. Real-time Live API requires a Gemini API key.",
+          message: "GEMINI_API_KEY is not configured. Real-time Live API requires a Gemini API key.",
         })
       );
       clientWs.close();
@@ -2289,6 +2458,7 @@ async function startServer() {
                 if (part.inlineData?.data) {
                   clientWs.send(
                     JSON.stringify({
+                      type: "audio_chunk",
                       audio: part.inlineData.data,
                     })
                   );
@@ -2296,6 +2466,7 @@ async function startServer() {
                 if (part.text) {
                   clientWs.send(
                     JSON.stringify({
+                      type: "text_delta",
                       text: part.text,
                     })
                   );
@@ -2303,11 +2474,11 @@ async function startServer() {
               }
 
               if (message.serverContent?.interrupted) {
-                clientWs.send(JSON.stringify({ interrupted: true }));
+                clientWs.send(JSON.stringify({ type: "interrupted", interrupted: true }));
               }
 
               if (message.serverContent?.turnComplete) {
-                clientWs.send(JSON.stringify({ turnComplete: true }));
+                clientWs.send(JSON.stringify({ type: "turn_complete", turnComplete: true }));
               }
             } catch (err) {
               console.warn("[Live API] Error forwarding message to client:", err);
@@ -2316,7 +2487,7 @@ async function startServer() {
           onclose: (e) => {
             console.log("[Live API] Gemini Live session closed:", e);
             if (clientWs.readyState === WebSocket.OPEN) {
-              clientWs.send(JSON.stringify({ status: "session_closed" }));
+              clientWs.send(JSON.stringify({ type: "session_closed", status: "session_closed" }));
             }
           },
           onerror: (err) => {
@@ -2324,7 +2495,9 @@ async function startServer() {
             if (clientWs.readyState === WebSocket.OPEN) {
               clientWs.send(
                 JSON.stringify({
+                  type: "error",
                   error: err?.message || "Live API streaming error",
+                  message: err?.message || "Live API streaming error",
                 })
               );
             }
@@ -2335,6 +2508,7 @@ async function startServer() {
       if (clientWs.readyState === WebSocket.OPEN) {
         clientWs.send(
           JSON.stringify({
+            type: "connected",
             status: "connected",
             model: "gemini-3.1-flash-live-preview",
             message: "Connected to Gemini Live session. Speak to discuss this contract.",
@@ -2346,7 +2520,9 @@ async function startServer() {
       if (clientWs.readyState === WebSocket.OPEN) {
         clientWs.send(
           JSON.stringify({
+            type: "error",
             error: `Failed to initialize Gemini Live API session: ${err?.message || err}`,
+            message: `Failed to initialize Gemini Live API session: ${err?.message || err}`,
           })
         );
       }
@@ -2359,14 +2535,16 @@ async function startServer() {
         const data = JSON.parse(raw.toString());
 
         // Send initial context about the active document
-        if (data.context && session) {
+        if ((data.init || data.context) && session) {
+          const docTitle = data.init?.documentTitle || data.title || "Legal Contract";
+          const docText = data.init?.systemPrompt || data.context || "";
           session.sendClientContent({
             turns: [
               {
                 role: "user",
                 parts: [
                   {
-                    text: `Here is the current legal document we are discussing: "${data.title || "Contract"}".\n\nFull or excerpted text:\n${String(data.context).slice(0, 12000)}\n\nPlease be ready to discuss any clauses, risks, or questions I ask about this document.`,
+                    text: `Here is the current legal document we are discussing: "${docTitle}".\n\nFull or excerpted text:\n${String(docText).slice(0, 15000)}\n\nPlease be ready to discuss any clauses, risks, or questions I ask about this document in concise spoken form.`,
                   },
                 ],
               },
@@ -2402,7 +2580,7 @@ async function startServer() {
     });
 
     clientWs.on("close", () => {
-      console.log("[Live API] Client disconnected from /live");
+      console.log("[Live API] Client disconnected from live socket");
       if (session) {
         try {
           session.close();

@@ -29,6 +29,8 @@ export const FloatingAIAssistant: React.FC<FloatingAIAssistantProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [inputQuery, setInputQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isButtonHovered, setIsButtonHovered] = useState(false);
+  const [magneticPos, setMagneticPos] = useState({ x: 0, y: 0 });
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "welcome-1",
@@ -237,32 +239,233 @@ export const FloatingAIAssistant: React.FC<FloatingAIAssistantProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Floating Trigger Button */}
-      {!isOpen && (
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          whileHover={{ scale: 1.04 }}
-          whileTap={{ scale: 0.96 }}
-          className="relative group cursor-pointer"
-          onClick={() => setIsOpen(true)}
-        >
-          {/* Teaser pill */}
-          <div className="absolute -top-10 right-0 hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full glass-panel-elevated shadow-lg border border-indigo-200 dark:border-indigo-900/60 text-xs font-semibold text-indigo-900 dark:text-indigo-200 whitespace-nowrap animate-bounce">
-            <Sparkles className="w-3 h-3 text-indigo-500" />
-            <span>Ask about this document: "What can hurt me?"</span>
-          </div>
+      {/* Floating Trigger Circular Button & Orbiting Antigravity Particles */}
+      <div
+        className="relative flex items-center justify-center"
+        onMouseEnter={() => setIsButtonHovered(true)}
+        onMouseLeave={() => {
+          setIsButtonHovered(false);
+          setMagneticPos({ x: 0, y: 0 });
+        }}
+        onMouseMove={(e) => {
+          if (isOpen) return;
+          const rect = e.currentTarget.getBoundingClientRect();
+          const centerX = rect.left + rect.width / 2;
+          const centerY = rect.top + rect.height / 2;
+          const deltaX = (e.clientX - centerX) * 0.22;
+          const deltaY = (e.clientY - centerY) * 0.22;
+          setMagneticPos({
+            x: Math.max(-8, Math.min(8, deltaX)),
+            y: Math.max(-8, Math.min(8, deltaY)),
+          });
+        }}
+      >
+        {/* Orbiting Antigravity Particles (Requirement 5) */}
+        {!isOpen && (
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+            {/* Particle 1 (Purple) */}
+            <motion.div
+              animate={{
+                rotate: 360,
+              }}
+              transition={{
+                duration: isButtonHovered ? 3.5 : 8,
+                repeat: Infinity,
+                ease: "linear",
+              }}
+              className="absolute w-full h-full flex items-center justify-center"
+            >
+              <motion.span
+                animate={{
+                  x: isButtonHovered ? 46 : 38,
+                  scale: isButtonHovered ? 1.25 : 1,
+                }}
+                transition={{ type: "spring", stiffness: 260, damping: 20 }}
+                className="w-2 h-2 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.9)]"
+              />
+            </motion.div>
 
+            {/* Particle 2 (Cyan / Sky) */}
+            <motion.div
+              animate={{
+                rotate: -360,
+              }}
+              transition={{
+                duration: isButtonHovered ? 4.2 : 9.5,
+                repeat: Infinity,
+                ease: "linear",
+              }}
+              className="absolute w-full h-full flex items-center justify-center"
+            >
+              <motion.span
+                animate={{
+                  y: isButtonHovered ? -46 : -38,
+                  scale: isButtonHovered ? 1.3 : 1,
+                }}
+                transition={{ type: "spring", stiffness: 260, damping: 20 }}
+                className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.9)]"
+              />
+            </motion.div>
+
+            {/* Particle 3 (Violet / Amber) */}
+            <motion.div
+              animate={{
+                rotate: 360,
+              }}
+              transition={{
+                duration: isButtonHovered ? 5.0 : 11,
+                repeat: Infinity,
+                ease: "linear",
+              }}
+              className="absolute w-full h-full flex items-center justify-center"
+            >
+              <motion.span
+                animate={{
+                  x: isButtonHovered ? -44 : -36,
+                  y: isButtonHovered ? 26 : 22,
+                  scale: isButtonHovered ? 1.2 : 1,
+                }}
+                transition={{ type: "spring", stiffness: 260, damping: 20 }}
+                className="w-1.5 h-1.5 rounded-full bg-purple-300 shadow-[0_0_8px_rgba(216,180,254,0.9)]"
+              />
+            </motion.div>
+          </div>
+        )}
+
+        {/* Teaser pill / tooltip shown when closed */}
+        {!isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ delay: 0.2 }}
+            className="absolute -top-12 right-0 hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full glass-panel-elevated shadow-xl border border-indigo-200/90 dark:border-indigo-800/80 text-xs font-bold text-indigo-950 dark:text-indigo-200 whitespace-nowrap cursor-pointer pointer-events-none select-none z-10"
+          >
+            <motion.span
+              animate={{ rotate: [0, 15, -15, 0] }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+              className="inline-block"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 shrink-0" />
+            </motion.span>
+            <span>Ask AI Assistant</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/90 text-indigo-600 dark:text-indigo-300 font-extrabold border border-indigo-300/80 dark:border-indigo-700/60 uppercase tracking-wide">
+              Live
+            </span>
+          </motion.div>
+        )}
+
+        <motion.div
+          animate={
+            isOpen
+              ? { y: 0, scale: 1, x: 0 }
+              : {
+                  x: magneticPos.x,
+                  y: magneticPos.y,
+                  scale: isButtonHovered ? 1.08 : 1,
+                }
+          }
+          transition={{
+            type: "spring",
+            stiffness: 350,
+            damping: 25,
+            mass: 0.5,
+          }}
+          whileTap={{ scale: 0.92 }}
+          className="relative group cursor-pointer flex items-center justify-center"
+          onClick={() => setIsOpen(!isOpen)}
+        >
+          {/* Outer Pulsing Sonar / Radar Ripple Ring 1 */}
+          {!isOpen && (
+            <motion.span
+              className="absolute -inset-2 rounded-full bg-indigo-500/35 dark:bg-indigo-400/25 pointer-events-none"
+              animate={{ scale: [1, 1.35, 1], opacity: [0.75, 0, 0.75] }}
+              transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+            />
+          )}
+
+          {/* Outer Pulsing Sonar / Radar Ripple Ring 2 */}
+          {!isOpen && (
+            <motion.span
+              className="absolute -inset-4 rounded-full bg-violet-500/25 dark:bg-violet-400/20 pointer-events-none"
+              animate={{ scale: [1, 1.55, 1], opacity: [0.55, 0, 0.55] }}
+              transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+            />
+          )}
+
+          {/* Rotating Ambient Gradient Halo */}
+          {!isOpen && (
+            <motion.div
+              className={`absolute -inset-1 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-amber-400 blur-[2px] pointer-events-none transition-opacity ${
+                isButtonHovered ? "opacity-100 scale-105" : "opacity-80"
+              }`}
+              animate={{ rotate: 360 }}
+              transition={{ duration: isButtonHovered ? 3.5 : 7, repeat: Infinity, ease: "linear" }}
+            />
+          )}
+
+          {/* Circle Action Button with Subtle Breathing Glow/Pulse and Enhanced Hover */}
           <button
             id="btn-floating-ai-assistant"
-            className="flex items-center gap-2 px-4 py-3 rounded-full bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-700 text-white font-semibold text-sm shadow-xl hover:shadow-indigo-500/25 transition-all cursor-pointer border border-white/20"
+            aria-label={isOpen ? "Close Legal AI Assistant" : "Open Legal AI Assistant"}
+            title={isOpen ? "Close Legal AI Assistant" : "Legal AI Assistant (Ask questions about this document)"}
+            className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-indigo-600 via-indigo-700 to-violet-600 text-white flex items-center justify-center border-2 border-white/40 dark:border-white/20 cursor-pointer overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 transition-all ${
+              isOpen
+                ? "shadow-2xl scale-100"
+                : isButtonHovered
+                ? "shadow-[0_0_36px_8px_rgba(99,102,241,0.85),0_0_54px_4px_rgba(79,70,229,0.60)]"
+                : "assistant-pulse-glow"
+            }`}
           >
-            <Sparkles className="w-4 h-4" />
-            <span>AI Assistant</span>
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping ml-0.5" />
+            {/* Shimmer sweep effect */}
+            {!isOpen && (
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -skew-x-12 pointer-events-none"
+                animate={{ x: ["-160%", "200%"] }}
+                transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut", repeatDelay: 1.5 }}
+              />
+            )}
+
+            {/* Icon: transforms between animated Sparkles and Close X */}
+            <motion.div
+              key={isOpen ? "icon-close" : "icon-sparkles"}
+              initial={{ rotate: isOpen ? -90 : 90, scale: 0.7, opacity: 0 }}
+              animate={{
+                rotate: isButtonHovered && !isOpen ? 15 : 0,
+                scale: 1,
+                opacity: 1,
+              }}
+              exit={{ rotate: isOpen ? 90 : -90, scale: 0.7, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 400, damping: 25 }}
+              className="flex items-center justify-center"
+            >
+              {isOpen ? (
+                <X className="w-6 h-6 text-white" />
+              ) : (
+                <motion.div
+                  animate={{
+                    rotate: isButtonHovered ? [0, 20, 0] : [0, -10, 10, -5, 5, 0],
+                    scale: isButtonHovered ? 1.15 : [1, 1.08, 1, 1.05, 1],
+                  }}
+                  transition={{
+                    duration: isButtonHovered ? 1.8 : 4.5,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                >
+                  <Sparkles className="w-6 h-6 sm:w-7 sm:h-7 text-white drop-shadow-sm" />
+                </motion.div>
+              )}
+            </motion.div>
+
+            {/* Live Online Badge on the circle */}
+            {!isOpen && (
+              <span className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-slate-900 shadow-xs flex items-center justify-center pointer-events-none">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+              </span>
+            )}
           </button>
         </motion.div>
-      )}
+      </div>
     </div>
   );
 };

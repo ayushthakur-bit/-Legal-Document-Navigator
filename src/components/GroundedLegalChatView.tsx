@@ -129,7 +129,7 @@ export const GroundedLegalChatView: React.FC<GroundedLegalChatViewProps> = ({
   };
 
   return (
-    <div className="glass-panel rounded-3xl flex flex-col h-[740px] border border-slate-200/80 dark:border-slate-800 shadow-xl overflow-hidden">
+    <div className="glass-panel rounded-3xl flex flex-col h-[calc(100dvh-220px)] sm:h-[740px] min-h-[480px] border border-slate-200/80 dark:border-slate-800 shadow-xl overflow-hidden">
       {/* Header */}
       <div className="p-4 sm:p-5 border-b border-slate-200/60 dark:border-slate-800/80 flex items-center justify-between">
         <div className="flex items-center gap-3">

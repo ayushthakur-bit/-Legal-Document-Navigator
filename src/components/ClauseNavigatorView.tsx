@@ -17,6 +17,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { LegalClause, RiskLevel, SearchGroundingResult } from "../types";
+import { MagneticButton } from "./MagneticButton";
+import { AntigravityCard } from "./AntigravityCard";
 
 interface ClauseNavigatorViewProps {
   clauses: LegalClause[];
@@ -38,6 +40,7 @@ export const ClauseNavigatorView: React.FC<ClauseNavigatorViewProps> = ({
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [isVerifyingStatute, setIsVerifyingStatute] = useState(false);
   const [statutoryVerification, setStatutoryVerification] = useState<SearchGroundingResult | null>(null);
+  const [mobileClauseTab, setMobileClauseTab] = useState<"list" | "detail">("list");
 
   const categories = Array.from(
     new Set(clauses.map((c) => c.category).filter(Boolean))
@@ -181,10 +184,40 @@ export const ClauseNavigatorView: React.FC<ClauseNavigatorViewProps> = ({
         )}
       </motion.div>
 
+      {/* Mobile Segmented Switcher (< lg) */}
+      <div className="lg:hidden flex items-center p-1 bg-slate-100 dark:bg-slate-800/90 rounded-2xl border border-slate-200 dark:border-slate-700/80 shadow-inner">
+        <button
+          type="button"
+          onClick={() => setMobileClauseTab("list")}
+          className={`flex-1 min-h-[44px] px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            mobileClauseTab === "list"
+              ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm"
+              : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+          }`}
+        >
+          <FileText className="w-3.5 h-3.5" />
+          <span>Clauses List ({filteredClauses.length})</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileClauseTab("detail")}
+          className={`flex-1 min-h-[44px] px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            mobileClauseTab === "detail"
+              ? "bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm"
+              : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Clause Detail</span>
+        </button>
+      </div>
+
       {/* Dual Pane Layout: Clauses List on Left, Deep Plain English Breakdown on Right */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Left Column: Clause Cards List (5 cols) */}
-        <div className="lg:col-span-5 space-y-2.5 max-h-[720px] overflow-y-auto pr-1 no-scrollbar">
+        <div className={`lg:col-span-5 space-y-2.5 max-h-[720px] overflow-y-auto pr-1 no-scrollbar ${
+          mobileClauseTab === "list" ? "block" : "hidden lg:block"
+        }`}>
           <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider px-1">
             Identified Clauses ({filteredClauses.length})
           </div>
@@ -201,7 +234,10 @@ export const ClauseNavigatorView: React.FC<ClauseNavigatorViewProps> = ({
               return (
                 <div
                   key={idx}
-                  onClick={() => setSelectedClauseIndex(idx)}
+                  onClick={() => {
+                    setSelectedClauseIndex(idx);
+                    setMobileClauseTab("detail");
+                  }}
                   className={`p-4 rounded-2xl transition-all cursor-pointer border-l-4 ${
                     riskMeta.border
                   } ${
@@ -241,9 +277,20 @@ export const ClauseNavigatorView: React.FC<ClauseNavigatorViewProps> = ({
         </div>
 
         {/* Right Column: Deep Plain English Translator & Impact (7 cols) */}
-        <div className="lg:col-span-7">
+        <div className={`lg:col-span-7 ${mobileClauseTab === "detail" ? "block" : "hidden lg:block"}`}>
           {activeClause ? (
             <div className="glass-panel-elevated rounded-3xl p-6 space-y-5 sticky top-24 border border-slate-200/80 dark:border-slate-800 shadow-xl">
+              {/* Mobile Back Button */}
+              <div className="lg:hidden pb-2 border-b border-slate-200/60 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setMobileClauseTab("list")}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 py-1.5 px-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 cursor-pointer"
+                >
+                  <span>&larr; Back to all clauses ({filteredClauses.length})</span>
+                </button>
+              </div>
+
               {/* Header */}
               <div className="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-slate-200/60 dark:border-slate-800/80">
                 <div>
@@ -405,18 +452,18 @@ export const ClauseNavigatorView: React.FC<ClauseNavigatorViewProps> = ({
 
               {/* Actions */}
               <div className="pt-3 border-t border-slate-200/60 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
-                <button
+                <MagneticButton
                   onClick={() =>
                     onAskAboutClause(
                       activeClause.originalSnippet || activeClause.clauseTitle,
                       activeClause.clauseTitle
                     )
                   }
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm hover:scale-[1.02]"
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
                 >
                   <MessageSquare className="w-3.5 h-3.5" />
-                  Ask AI Grounded Question on this Clause
-                </button>
+                  <span>Ask about this document</span>
+                </MagneticButton>
 
                 <button
                   onClick={onOpenGlossary}

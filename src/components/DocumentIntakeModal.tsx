@@ -129,7 +129,7 @@ export const DocumentIntakeModal: React.FC<DocumentIntakeModalProps> = ({
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="glass-panel-elevated rounded-3xl border border-slate-200 dark:border-slate-700 max-w-3xl w-full p-6 space-y-5 my-8 shadow-2xl"
+        className="glass-panel-elevated rounded-3xl border border-slate-200 dark:border-slate-700 max-w-3xl w-full p-4 sm:p-6 space-y-4 sm:space-y-5 my-auto max-h-[90vh] overflow-y-auto shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-slate-800">
@@ -149,7 +149,7 @@ export const DocumentIntakeModal: React.FC<DocumentIntakeModalProps> = ({
           <button
             id="btn-close-intake-modal"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1.5 rounded-lg cursor-pointer"
+            className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
